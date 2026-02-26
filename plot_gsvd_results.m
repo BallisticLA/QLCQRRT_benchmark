@@ -27,62 +27,32 @@ svals_csv   = fullfile(data_dir, svals_csv);
 %% ------------------------------------------------------------------
 %  Load results CSV
 %  ------------------------------------------------------------------
+% Count comment lines (lines starting with #)
 fid = fopen(results_csv, 'r');
-% Skip comment lines
+n_comments = 0;
 while true
-    pos = ftell(fid);
     line = fgetl(fid);
-    if line(1) ~= '#'
-        fseek(fid, pos, 'bof');
-        break;
-    end
-end
-header = fgetl(fid);
-cols = strsplit(header, ',');
-n_cols = numel(cols);
-
-% Read data
-fmt = repmat('%f', 1, n_cols);
-% Replace %f for algorithm column with %s
-alg_col = find(strcmp(cols, 'algorithm'));
-fmt_parts = cell(1, n_cols);
-for i = 1:n_cols
-    if i == alg_col
-        fmt_parts{i} = '%s';
+    if line(1) == '#'
+        n_comments = n_comments + 1;
     else
-        fmt_parts{i} = '%f';
-    end
-end
-fseek(fid, 0, 'bof');
-% Skip comments again
-while true
-    pos = ftell(fid);
-    line = fgetl(fid);
-    if line(1) ~= '#'
-        fseek(fid, pos, 'bof');
         break;
     end
 end
-fgetl(fid);  % skip header
-data = textscan(fid, strjoin(fmt_parts, ','), 'Delimiter', ',');
 fclose(fid);
 
-% Build column map
-col_map = containers.Map();
-for i = 1:n_cols
-    col_map(cols{i}) = i;
-end
+opts = detectImportOptions(results_csv, 'NumHeaderLines', n_comments);
+T = readtable(results_csv, opts);
 
-algorithms = data{col_map('algorithm')};
-qr_time    = data{col_map('qr_time_us')};
-orth_error = data{col_map('orth_error')};
-max_orth   = data{col_map('max_orth_cols')};
-total_a    = data{col_map('total_a_time_us')};
-total_b    = data{col_map('total_b_time_us')};
-total_c    = data{col_map('total_c_time_us')};
-ls_err     = data{col_map('ls_rel_error')};
-m_val      = data{col_map('m')}(1);
-n_val      = data{col_map('n')}(1);
+algorithms = T.algorithm;
+qr_time    = T.qr_time_us;
+orth_error = T.orth_error;
+max_orth   = T.max_orth_cols;
+total_a    = T.total_a_time_us;
+total_b    = T.total_b_time_us;
+total_c    = T.total_c_time_us;
+ls_err     = T.ls_rel_error;
+m_val      = T.m(1);
+n_val      = T.n(1);
 
 unique_algs = unique(algorithms, 'stable');
 n_algs = numel(unique_algs);
@@ -168,37 +138,37 @@ end
 %% ------------------------------------------------------------------
 %  Figure 3: Singular value spectrum
 %  ------------------------------------------------------------------
-if nargin >= 2 && ~isempty(svals_csv)
+if nargin >= 3 && ~isempty(svals_csv)
     figure('Position', [750 650 600 400]);
 
+    % Count comment lines in svals CSV
     fid2 = fopen(svals_csv, 'r');
-    % Skip comment line
+    n_comments_sv = 0;
     while true
-        pos = ftell(fid2);
         line = fgetl(fid2);
-        if line(1) ~= '#'
-            fseek(fid2, pos, 'bof');
+        if line(1) == '#'
+            n_comments_sv = n_comments_sv + 1;
+        else
             break;
         end
     end
-    sv_header = fgetl(fid2);
-    sv_cols = strsplit(sv_header, ',');
-    n_sv_cols = numel(sv_cols);
-
-    % Read: run, algorithm, sigma_0, sigma_1, ...
-    sv_fmt = ['%f%s', repmat('%f', 1, n_sv_cols - 2)];
-    sv_data = textscan(fid2, sv_fmt, 'Delimiter', ',');
     fclose(fid2);
 
-    sv_algs = sv_data{2};
-    n_svals = n_sv_cols - 2;
+    sv_opts = detectImportOptions(svals_csv, 'NumHeaderLines', n_comments_sv);
+    T_sv = readtable(svals_csv, sv_opts);
+
+    sv_algs = T_sv.algorithm;
+    % Singular value columns are sigma_0, sigma_1, ...
+    sv_col_names = T_sv.Properties.VariableNames;
+    sv_mask = startsWith(sv_col_names, 'sigma_');
+    n_svals = sum(sv_mask);
+    sv_col_idx = find(sv_mask);
 
     % Plot singular values for the selected run of each algorithm
     colors_line = lines(n_algs);
     markers = {'o', 's', '^', 'd'};
     hold on;
     for a = 1:n_algs
-        % Find the selected run for this algorithm in the svals data
         mask = strcmp(sv_algs, unique_algs{a});
         sv_indices = find(mask);
 
@@ -207,7 +177,7 @@ if nargin >= 2 && ~isempty(svals_csv)
             row = sv_indices(1);
             svals = zeros(1, n_svals);
             for j = 1:n_svals
-                svals(j) = sv_data{2 + j}(row);
+                svals(j) = T_sv{row, sv_col_idx(j)};
             end
             semilogy(1:n_svals, svals, ['-', markers{mod(a-1, numel(markers))+1}], ...
                      'Color', colors_line(a, :), 'MarkerSize', 4, ...
