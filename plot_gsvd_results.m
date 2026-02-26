@@ -192,6 +192,31 @@ if ~isempty(breakdown_csv)
     % Breakdown times are in columns t0..t12
     bd_times = T_bd{:, 5:end};  % skip m, n, run, algorithm
 
+    % First pass: compute max total time across algorithms for uniform y-axis
+    max_total_ms = 0;
+    for a = 1:n_algs
+        alg_name = unique_algs{a};
+        mask = strcmp(bd_algs, alg_name);
+        bd_indices = find(mask);
+        sel_run = T.run(sel_idx(a));
+        bd_runs = T_bd.run(bd_indices);
+        match = find(bd_runs == sel_run, 1);
+        if isempty(match), match = 1; end
+        row = bd_indices(match);
+        % Last non-zero entry is the total
+        if strcmp(alg_name, 'CQRRT_linop')
+            total_ms = bd_times(row, 11) / 1000;
+        elseif strcmp(alg_name, 'CholQR')
+            total_ms = bd_times(row, 6) / 1000;
+        elseif strcmp(alg_name, 'sCholQR3')
+            total_ms = bd_times(row, 13) / 1000;
+        else
+            total_ms = 0;
+        end
+        max_total_ms = max(max_total_ms, total_ms);
+    end
+    bd_ylim = [0, max_total_ms * 1.08];
+
     figure('Position', [150, 150, 1600, 450]);
     tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
 
@@ -201,7 +226,6 @@ if ~isempty(breakdown_csv)
         bd_indices = find(mask);
 
         % Use the selected run for this algorithm
-        % Match by run index from sel_idx
         sel_run = T.run(sel_idx(a));
         bd_runs = T_bd.run(bd_indices);
         match = find(bd_runs == sel_run, 1);
@@ -242,7 +266,10 @@ if ~isempty(breakdown_csv)
             bplot(i).FaceColor = colors_nz{i};
             bplot(i).FaceAlpha = 0.9;
         end
-        ylabel('Time (ms)', 'FontSize', 10);
+        ylim(bd_ylim);
+        if a == 1
+            ylabel('Time (ms)', 'FontSize', 10);
+        end
         title(alg_name, 'FontSize', 12, 'FontWeight', 'bold');
         lgd = legend(labels_nz{:});
         lgd.FontSize = 7;
