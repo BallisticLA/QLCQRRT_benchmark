@@ -1,47 +1,45 @@
 %% plot_gsvd_results.m — Plot GSVD / Generalized LS benchmark results
 %
 % Usage:
-%   plot_gsvd_results(data_dir, results_csv, svals_csv)
-%   plot_gsvd_results(data_dir, results_csv, svals_csv, plot_mode)
+%   plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv)
+%   plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv, plot_mode)
 %
 % Arguments:
-%   data_dir    — directory containing the CSV files
-%   results_csv — filename of *_gsvd_results.csv
-%   svals_csv   — filename of *_gsvd_svals.csv
-%   plot_mode   — 'best_speed' (default), 'worst_ortho', or 'best_ortho'
+%   data_dir      — directory containing the CSV files
+%   results_csv   — filename of *_gsvd_results.csv
+%   svals_csv     — filename of *_gsvd_svals.csv
+%   breakdown_csv — filename of *_gsvd_breakdown.csv
+%   plot_mode     — 'best_speed' (default), 'worst_ortho', or 'best_ortho'
 %
-% Produces three figures:
-%   1. Timing bar chart — QR time + 3 application totals per algorithm
-%   2. Orthogonality comparison — bar chart (log scale)
-%   3. Singular value spectrum — overlay from each algorithm
+% Produces two figures:
+%   Figure 1 (3x1): Timing bars, orthogonality, singular value spectrum
+%   Figure 2 (1x3): Runtime breakdown stacked bars per algorithm
 
-function plot_gsvd_results(data_dir, results_csv, svals_csv, plot_mode)
+function plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv, plot_mode)
 
-if nargin < 4
+if nargin < 5
     plot_mode = 'best_speed';
 end
 
-results_csv = fullfile(data_dir, results_csv);
-svals_csv   = fullfile(data_dir, svals_csv);
+% Mode display string for titles
+if strcmp(plot_mode, 'best_speed')
+    mode_str = 'Best Speed';
+elseif strcmp(plot_mode, 'worst_ortho')
+    mode_str = 'Worst Ortho';
+else
+    mode_str = 'Best Ortho';
+end
+
+results_path   = fullfile(data_dir, results_csv);
+svals_path     = fullfile(data_dir, svals_csv);
+breakdown_path = fullfile(data_dir, breakdown_csv);
 
 %% ------------------------------------------------------------------
 %  Load results CSV
 %  ------------------------------------------------------------------
-% Count comment lines (lines starting with #)
-fid = fopen(results_csv, 'r');
-n_comments = 0;
-while true
-    line = fgetl(fid);
-    if line(1) == '#'
-        n_comments = n_comments + 1;
-    else
-        break;
-    end
-end
-fclose(fid);
-
-opts = detectImportOptions(results_csv, 'NumHeaderLines', n_comments);
-T = readtable(results_csv, opts);
+n_comments = count_comment_lines(results_path);
+opts = detectImportOptions(results_path, 'NumHeaderLines', n_comments);
+T = readtable(results_path, opts);
 
 algorithms = T.algorithm;
 qr_time    = T.qr_time_us;
@@ -60,7 +58,7 @@ n_algs = numel(unique_algs);
 %% ------------------------------------------------------------------
 %  Select representative run per algorithm based on plot_mode
 %  ------------------------------------------------------------------
-sel_idx = zeros(n_algs, 1);  % index into the full data arrays
+sel_idx = zeros(n_algs, 1);
 
 for a = 1:n_algs
     mask = strcmp(algorithms, unique_algs{a});
@@ -82,9 +80,12 @@ for a = 1:n_algs
 end
 
 %% ------------------------------------------------------------------
-%  Figure 1: Timing bar chart
+%  Figure 1: Main comparison (3x1 grid)
 %  ------------------------------------------------------------------
-figure('Position', [100 100 800 500]);
+figure('Position', [100, 100, 800, 900]);
+
+% --- Subplot 1: Timing bar chart ---
+subplot(3, 1, 1);
 
 bar_data = zeros(n_algs, 4);
 for a = 1:n_algs
@@ -97,11 +98,12 @@ end
 
 b = bar(bar_data);
 set(gca, 'XTickLabel', unique_algs);
-ylabel('Time (ms)');
-title(sprintf('GSVD Benchmark Timing (%d x %d, mode: %s)', m_val, n_val, plot_mode));
+ylabel('Time (ms)', 'FontSize', 12);
+title(sprintf('Timing (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bold');
 legend({'Q-less QR', 'App (a): Gen. LS', 'App (b): Gen. svals', 'App (c): Gen. svecs'}, ...
-       'Location', 'northwest');
+       'Location', 'northwest', 'FontSize', 10);
 grid on;
+set(gca, 'FontSize', 11);
 
 % Color scheme
 colors = [0.2 0.4 0.8;   % blue - QR
@@ -112,22 +114,22 @@ for k = 1:4
     b(k).FaceColor = colors(k, :);
 end
 
-%% ------------------------------------------------------------------
-%  Figure 2: Orthogonality comparison
-%  ------------------------------------------------------------------
-figure('Position', [100 650 600 400]);
+% --- Subplot 2: Orthogonality comparison ---
+subplot(3, 1, 2);
 
 orth_vals = zeros(n_algs, 1);
 for a = 1:n_algs
     orth_vals(a) = orth_error(sel_idx(a));
 end
 
-bar(orth_vals);
+bh = bar(orth_vals);
+bh.FaceColor = [0.2 0.4 0.8];
 set(gca, 'YScale', 'log');
 set(gca, 'XTickLabel', unique_algs);
-ylabel('||Q^T Q - I||_F / \surd{n}');
-title(sprintf('Orthogonality (%d x %d, mode: %s)', m_val, n_val, plot_mode));
+ylabel('$\|Q^TQ - I\|_F / \sqrt{n}$', 'Interpreter', 'latex', 'FontSize', 12);
+title(sprintf('Orthogonality (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
+set(gca, 'FontSize', 11);
 
 % Add text labels on bars
 for a = 1:n_algs
@@ -135,44 +137,26 @@ for a = 1:n_algs
          'HorizontalAlignment', 'center', 'FontSize', 9);
 end
 
-%% ------------------------------------------------------------------
-%  Figure 3: Singular value spectrum
-%  ------------------------------------------------------------------
-if nargin >= 3 && ~isempty(svals_csv)
-    figure('Position', [750 650 600 400]);
+% --- Subplot 3: Singular value spectrum ---
+subplot(3, 1, 3);
 
-    % Count comment lines in svals CSV
-    fid2 = fopen(svals_csv, 'r');
-    n_comments_sv = 0;
-    while true
-        line = fgetl(fid2);
-        if line(1) == '#'
-            n_comments_sv = n_comments_sv + 1;
-        else
-            break;
-        end
-    end
-    fclose(fid2);
-
-    sv_opts = detectImportOptions(svals_csv, 'NumHeaderLines', n_comments_sv);
-    T_sv = readtable(svals_csv, sv_opts);
+if ~isempty(svals_csv)
+    n_comments_sv = count_comment_lines(svals_path);
+    sv_opts = detectImportOptions(svals_path, 'NumHeaderLines', n_comments_sv);
+    T_sv = readtable(svals_path, sv_opts);
 
     sv_algs = T_sv.algorithm;
-    % Singular value columns are sigma_0, sigma_1, ...
     sv_col_names = T_sv.Properties.VariableNames;
     sv_mask = startsWith(sv_col_names, 'sigma_');
     n_svals = sum(sv_mask);
     sv_col_idx = find(sv_mask);
 
-    % Plot singular values for the selected run of each algorithm
     colors_line = lines(n_algs);
     markers = {'o', 's', '^', 'd'};
     hold on;
     for a = 1:n_algs
         mask = strcmp(sv_algs, unique_algs{a});
         sv_indices = find(mask);
-
-        % Use the first matching run (all runs should give similar svals)
         if ~isempty(sv_indices)
             row = sv_indices(1);
             svals = zeros(1, n_svals);
@@ -185,16 +169,114 @@ if nargin >= 3 && ~isempty(svals_csv)
         end
     end
     hold off;
-    xlabel('Index i');
-    ylabel('\sigma_i');
-    title(sprintf('Generalized Singular Values (%d x %d)', m_val, n_val));
-    legend('Location', 'northeast');
+    xlabel('Index i', 'FontSize', 12);
+    ylabel('\sigma_i', 'FontSize', 12);
+    title('Generalized Singular Values', 'FontSize', 14, 'FontWeight', 'bold');
+    legend('Location', 'northeast', 'FontSize', 10);
     grid on;
+    set(gca, 'FontSize', 11);
 end
 
-fprintf('Plots generated for %s\n', results_csv);
+sgtitle(sprintf('GSVD Benchmark (%d \\times %d)', m_val, n_val), ...
+    'FontSize', 15, 'FontWeight', 'bold');
+
+%% ------------------------------------------------------------------
+%  Figure 2: Runtime breakdown (1x3 tiled layout)
+%  ------------------------------------------------------------------
+if ~isempty(breakdown_csv)
+    n_comments_bd = count_comment_lines(breakdown_path);
+    bd_opts = detectImportOptions(breakdown_path, 'NumHeaderLines', n_comments_bd);
+    T_bd = readtable(breakdown_path, bd_opts);
+
+    bd_algs = T_bd.algorithm;
+    % Breakdown times are in columns t0..t12
+    bd_times = T_bd{:, 5:end};  % skip m, n, run, algorithm
+
+    figure('Position', [150, 150, 1600, 450]);
+    tiledlayout(1, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
+
+    for a = 1:n_algs
+        alg_name = unique_algs{a};
+        mask = strcmp(bd_algs, alg_name);
+        bd_indices = find(mask);
+
+        % Use the selected run for this algorithm
+        % Match by run index from sel_idx
+        sel_run = T.run(sel_idx(a));
+        bd_runs = T_bd.run(bd_indices);
+        match = find(bd_runs == sel_run, 1);
+        if isempty(match)
+            match = 1;  % fallback to first
+        end
+        row = bd_indices(match);
+        times_us = bd_times(row, :);
+
+        nexttile
+        if strcmp(alg_name, 'CQRRT_linop')
+            % alloc, saso, qr, trtri, linop_precond, linop_gram, trmm_gram, potrf, finalize, rest, total
+            vals = times_us(1:10) / 1000;  % ms (exclude total)
+            labels_bd = {'Alloc', 'SASO', 'QR', 'TRTRI', 'LinOp(Prec)', 'LinOp(Gram)', 'TRMM', 'Chol', 'Finalize', 'Rest'};
+            bd_colors = {[0.6 0.6 0.6], '#2CA02C', '#1F77B4', '#E377C2', '#B15928', '#EDB120', '#FF7F0E', '#7E2F8E', '#17BECF', [0.8 0.8 0.8]};
+        elseif strcmp(alg_name, 'CholQR')
+            % alloc, materialize, gram, potrf, rest, total
+            vals = times_us(1:5) / 1000;
+            labels_bd = {'Alloc', 'LinOp', 'Gram', 'Chol', 'Rest'};
+            bd_colors = {[0.6 0.6 0.6], '#B15928', '#EDB120', '#7E2F8E', [0.8 0.8 0.8]};
+        elseif strcmp(alg_name, 'sCholQR3')
+            % alloc, materialize, gram1, potrf1, trsm1, syrk2, potrf2, update2, syrk3, potrf3, update3, rest, total
+            vals = times_us(1:12) / 1000;
+            labels_bd = {'Alloc', 'LinOp', 'Gram_1', 'Chol_1', 'Trsm_1', 'Syrk_2', 'Chol_2', 'Upd_2', 'Syrk_3', 'Chol_3', 'Upd_3', 'Rest'};
+            bd_colors = {[0.6 0.6 0.6], '#B15928', '#EDB120', '#CAB2D6', '#17BECF', '#FDBF6F', '#7E2F8E', '#FB9A99', '#FF7F0E', '#984EA3', '#E31A1C', [0.8 0.8 0.8]};
+        else
+            continue;
+        end
+
+        % Filter out zero-time entries for cleaner legend
+        nonzero = vals > 0;
+        vals_nz = vals(nonzero);
+        labels_nz = labels_bd(nonzero);
+        colors_nz = bd_colors(nonzero);
+
+        bplot = bar(vals_nz, 'stacked');
+        for i = 1:length(colors_nz)
+            bplot(i).FaceColor = colors_nz{i};
+            bplot(i).FaceAlpha = 0.9;
+        end
+        ylabel('Time (ms)', 'FontSize', 10);
+        title(alg_name, 'FontSize', 12, 'FontWeight', 'bold');
+        lgd = legend(labels_nz{:});
+        lgd.FontSize = 7;
+        lgd.Location = 'eastoutside';
+        set(gca, 'XTick', []);
+        grid on;
+        set(gca, 'FontSize', 10);
+    end
+
+    sgtitle(sprintf('QR Runtime Breakdown (%d \\times %d, %s)', m_val, n_val, mode_str), ...
+        'FontSize', 13, 'FontWeight', 'bold');
+end
+
+fprintf('Plots generated for %s\n', results_path);
 fprintf('  Mode: %s\n', plot_mode);
 fprintf('  Algorithms: %s\n', strjoin(unique_algs, ', '));
 fprintf('  Matrix size: %d x %d\n', m_val, n_val);
 
+end
+
+%% ------------------------------------------------------------------
+%  Helper: count comment lines at start of file
+%  ------------------------------------------------------------------
+function n = count_comment_lines(filepath)
+    fid = fopen(filepath, 'r');
+    n = 0;
+    while true
+        line = fgetl(fid);
+        if line == -1, break; end
+        if line(1) == '#'
+            n = n + 1;
+        else
+            break;
+        end
+    end
+    fclose(fid);
 end

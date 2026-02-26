@@ -12,7 +12,7 @@ data_dir_amg  = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-out
 %'20260224_105319_scaling_breakdown.csv', 'worst_ortho');
 
 %% Case 1: Well-conditioned AMG base (κ ≈ 54)
-plot_gsvd_results(data_dir_amg, '20260226_154140_gsvd_results.csv', '20260226_154140_gsvd_svals.csv', 'worst_ortho');
+plot_gsvd_results(data_dir_amg, '20260226_173717_gsvd_results.csv', '20260226_173717_gsvd_svals.csv', '20260226_173717_gsvd_breakdown.csv', 'worst_ortho');
 
 %% Case 2: Ill-conditioned random V (κ ≈ 1.5e7)
-%plot_gsvd_results(data_dir_amg, '20260226_154156_gsvd_results.csv', '20260226_154156_gsvd_svals.csv', 'worst_ortho');
+%plot_gsvd_results(data_dir_amg, '20260226_173716_gsvd_results.csv', '20260226_173716_gsvd_svals.csv', '20260226_173716_gsvd_breakdown.csv', 'worst_ortho');
