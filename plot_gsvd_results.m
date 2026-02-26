@@ -237,7 +237,7 @@ if ~isempty(breakdown_csv)
         labels_nz = labels_bd(nonzero);
         colors_nz = bd_colors(nonzero);
 
-        bplot = bar(vals_nz, 'stacked');
+        bplot = bar(1, vals_nz, 'stacked');
         for i = 1:length(colors_nz)
             bplot(i).FaceColor = colors_nz{i};
             bplot(i).FaceAlpha = 0.9;
