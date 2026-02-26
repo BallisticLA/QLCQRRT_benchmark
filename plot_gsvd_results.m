@@ -1,12 +1,13 @@
 %% plot_gsvd_results.m — Plot GSVD / Generalized LS benchmark results
 %
 % Usage:
-%   plot_gsvd_results(results_csv, svals_csv)
-%   plot_gsvd_results(results_csv, svals_csv, plot_mode)
+%   plot_gsvd_results(data_dir, results_csv, svals_csv)
+%   plot_gsvd_results(data_dir, results_csv, svals_csv, plot_mode)
 %
 % Arguments:
-%   results_csv — path to *_gsvd_results.csv
-%   svals_csv   — path to *_gsvd_svals.csv
+%   data_dir    — directory containing the CSV files
+%   results_csv — filename of *_gsvd_results.csv
+%   svals_csv   — filename of *_gsvd_svals.csv
 %   plot_mode   — 'best_speed' (default), 'worst_ortho', or 'best_ortho'
 %
 % Produces three figures:
@@ -14,11 +15,14 @@
 %   2. Orthogonality comparison — bar chart (log scale)
 %   3. Singular value spectrum — overlay from each algorithm
 
-function plot_gsvd_results(results_csv, svals_csv, plot_mode)
+function plot_gsvd_results(data_dir, results_csv, svals_csv, plot_mode)
 
-if nargin < 3
+if nargin < 4
     plot_mode = 'best_speed';
 end
+
+results_csv = fullfile(data_dir, results_csv);
+svals_csv   = fullfile(data_dir, svals_csv);
 
 %% ------------------------------------------------------------------
 %  Load results CSV

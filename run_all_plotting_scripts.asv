@@ -1,0 +1,11 @@
+
+data_dir_scaling = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\scaling\';
+data_dir_conditioning = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\conditioning\';
+
+% Just sparse conditioning
+plot_conditioning_comparison(data_dir_conditioning, ...
+    '20260128_164753_conditioning_sparse_results.csv', ...
+    '20260128_164753_conditioning_sparse_results_breakdown.csv')
+
+
+%plot_scaling_results(data_dir_scaling, '20260128_110555_scaling_results.csv', '20260128_110555_scaling_breakdown.csv')
