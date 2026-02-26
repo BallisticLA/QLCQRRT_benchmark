@@ -268,6 +268,9 @@ end
 %  ------------------------------------------------------------------
 function n = count_comment_lines(filepath)
     fid = fopen(filepath, 'r');
+    if fid == -1
+        error('Cannot open file: %s', filepath);
+    end
     n = 0;
     while true
         line = fgetl(fid);
