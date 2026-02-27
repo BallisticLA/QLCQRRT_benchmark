@@ -1,0 +1,19 @@
+# GSVD Benchmark runtime breakdown
+# Date: Fri Feb 27 11:45:14 2026
+# Matrix dimensions: m=4096 n=484
+# Runs per algorithm: 3
+# OpenMP threads: 20
+# Times are in microseconds
+# CQRRT_linop breakdown (11): alloc, saso, qr, trtri, linop_precond, linop_gram, trmm_gram, potrf, finalize, rest, total
+# CholQR breakdown (6): alloc, materialize, gram, potrf, rest, total
+# sCholQR3 breakdown (13): alloc, materialize, gram1, potrf1, trsm1, syrk2, potrf2, update2, syrk3, potrf3, update3, rest, total
+m,n,run,algorithm,t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12
+4096,484,0,CQRRT_linop,6,34044,3863,963,276717,0,1020,444,1011,36,318104,0,0
+4096,484,1,CQRRT_linop,1,27541,5472,1212,125398,0,1040,433,872,31,162000,0,0
+4096,484,2,CQRRT_linop,1,26781,3571,917,164955,0,1018,467,1033,32,198775,0,0
+4096,484,0,CholQR,157,188638,0,487,60,189342,0,0,0,0,0,0,0
+4096,484,1,CholQR,132,166776,0,568,45,167521,0,0,0,0,0,0,0
+4096,484,2,CholQR,157,153811,0,528,54,154550,0,0,0,0,0,0,0
+4096,484,0,sCholQR3,2517,218024,0,662,6071,5683,701,6350,7281,669,838,477,249273
+4096,484,1,sCholQR3,9137,163385,0,780,4916,5719,587,6768,6497,519,886,51,199245
+4096,484,2,sCholQR3,9683,239852,0,732,5521,4686,607,5546,6561,529,874,40,274631
