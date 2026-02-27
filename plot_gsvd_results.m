@@ -12,7 +12,7 @@
 %   plot_mode     — 'best_speed' (default), 'worst_ortho', or 'best_ortho'
 %
 % Produces two figures:
-%   Figure 1 (3x1): Timing bars, orthogonality, singular value spectrum
+%   Figure 1 (2x1): Timing bars, orthogonality
 %   Figure 2 (1x3): Runtime breakdown stacked bars per algorithm
 
 function plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv, plot_mode)
@@ -80,12 +80,12 @@ for a = 1:n_algs
 end
 
 %% ------------------------------------------------------------------
-%  Figure 1: Main comparison (3x1 grid)
+%  Figure 1: Main comparison (2x1 grid)
 %  ------------------------------------------------------------------
-figure('Position', [100, 100, 800, 900]);
+figure('Position', [100, 100, 800, 600]);
 
 % --- Subplot 1: Timing bar chart ---
-subplot(3, 1, 1);
+subplot(2, 1, 1);
 
 bar_data = zeros(n_algs, 4);
 for a = 1:n_algs
@@ -115,7 +115,7 @@ for k = 1:4
 end
 
 % --- Subplot 2: Orthogonality comparison ---
-subplot(3, 1, 2);
+subplot(2, 1, 2);
 
 orth_vals = zeros(n_algs, 1);
 for a = 1:n_algs
@@ -135,46 +135,6 @@ set(gca, 'FontSize', 11);
 for a = 1:n_algs
     text(a, orth_vals(a) * 2, sprintf('%.1e', orth_vals(a)), ...
          'HorizontalAlignment', 'center', 'FontSize', 9);
-end
-
-% --- Subplot 3: Singular value spectrum ---
-subplot(3, 1, 3);
-
-if ~isempty(svals_csv)
-    n_comments_sv = count_comment_lines(svals_path);
-    sv_opts = detectImportOptions(svals_path, 'NumHeaderLines', n_comments_sv);
-    T_sv = readtable(svals_path, sv_opts);
-
-    sv_algs = T_sv.algorithm;
-    sv_col_names = T_sv.Properties.VariableNames;
-    sv_mask = startsWith(sv_col_names, 'sigma_');
-    n_svals = sum(sv_mask);
-    sv_col_idx = find(sv_mask);
-
-    colors_line = lines(n_algs);
-    markers = {'o', 's', '^', 'd'};
-    hold on;
-    for a = 1:n_algs
-        mask = strcmp(sv_algs, unique_algs{a});
-        sv_indices = find(mask);
-        if ~isempty(sv_indices)
-            row = sv_indices(1);
-            svals = zeros(1, n_svals);
-            for j = 1:n_svals
-                svals(j) = T_sv{row, sv_col_idx(j)};
-            end
-            semilogy(1:n_svals, svals, ['-', markers{mod(a-1, numel(markers))+1}], ...
-                     'Color', colors_line(a, :), 'MarkerSize', 4, ...
-                     'DisplayName', unique_algs{a});
-        end
-    end
-    hold off;
-    xlabel('Index i', 'FontSize', 12);
-    ylabel('\sigma_i', 'FontSize', 12);
-    title('Generalized Singular Values', 'FontSize', 14, 'FontWeight', 'bold');
-    legend('Location', 'northeast', 'FontSize', 10);
-    grid on;
-    set(gca, 'FontSize', 11);
 end
 
 sgtitle(sprintf('GSVD Benchmark (%d \\times %d)', m_val, n_val), ...
