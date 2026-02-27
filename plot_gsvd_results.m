@@ -1,13 +1,12 @@
 %% plot_gsvd_results.m — Plot GSVD / Generalized LS benchmark results
 %
 % Usage:
-%   plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv)
-%   plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv, plot_mode)
+%   plot_gsvd_results(data_dir, results_csv, breakdown_csv)
+%   plot_gsvd_results(data_dir, results_csv, breakdown_csv, plot_mode)
 %
 % Arguments:
 %   data_dir      — directory containing the CSV files
 %   results_csv   — filename of *_gsvd_results.csv
-%   svals_csv     — filename of *_gsvd_svals.csv
 %   breakdown_csv — filename of *_gsvd_breakdown.csv
 %   plot_mode     — 'best_speed' (default), 'worst_ortho', or 'best_ortho'
 %
@@ -15,9 +14,9 @@
 %   Figure 1 (3x1): Timing bars, orthogonality, memory
 %   Figure 2 (1x3): Runtime breakdown stacked bars per algorithm
 
-function plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv, plot_mode)
+function plot_gsvd_results(data_dir, results_csv, breakdown_csv, plot_mode)
 
-if nargin < 5
+if nargin < 4
     plot_mode = 'best_speed';
 end
 
@@ -31,7 +30,6 @@ else
 end
 
 results_path   = fullfile(data_dir, results_csv);
-svals_path     = fullfile(data_dir, svals_csv);
 breakdown_path = fullfile(data_dir, breakdown_csv);
 
 %% ------------------------------------------------------------------
@@ -187,10 +185,27 @@ if ~isempty(breakdown_csv)
     % Breakdown times are in columns t0..t12
     bd_times = T_bd{:, 5:end};  % skip m, n, run, algorithm
 
+    % Per-algorithm breakdown definitions:
+    %   n_entries = number of breakdown entries (excluding total)
+    %   total_col = 1-based column in bd_times for the total
+    bd_defs = struct( ...
+        'CQRRT_linop', struct('n_entries', 10, 'total_col', 11, ...
+            'labels', {{'Alloc', 'SASO', 'QR', 'TRTRI', 'LinOp(Prec)', 'LinOp(Gram)', 'TRMM', 'Chol', 'Finalize', 'Rest'}}, ...
+            'colors', {{[0.6 0.6 0.6], '#2CA02C', '#1F77B4', '#E377C2', '#B15928', '#EDB120', '#FF7F0E', '#7E2F8E', '#17BECF', [0.8 0.8 0.8]}}), ...
+        'CholQR', struct('n_entries', 5, 'total_col', 6, ...
+            'labels', {{'Alloc', 'LinOp', 'Gram', 'Chol', 'Rest'}}, ...
+            'colors', {{[0.6 0.6 0.6], '#B15928', '#EDB120', '#7E2F8E', [0.8 0.8 0.8]}}), ...
+        'sCholQR3', struct('n_entries', 12, 'total_col', 13, ...
+            'labels', {{'Alloc', 'LinOp', 'Gram_1', 'Chol_1', 'Trsm_1', 'Syrk_2', 'Chol_2', 'Upd_2', 'Syrk_3', 'Chol_3', 'Upd_3', 'Rest'}}, ...
+            'colors', {{[0.6 0.6 0.6], '#B15928', '#EDB120', '#CAB2D6', '#17BECF', '#FDBF6F', '#7E2F8E', '#FB9A99', '#FF7F0E', '#984EA3', '#E31A1C', [0.8 0.8 0.8]}}) ...
+    );
+
     % First pass: compute max total time across algorithms for uniform y-axis
     max_total_ms = 0;
     for a = 1:n_algs
         alg_name = unique_algs{a};
+        if ~isfield(bd_defs, alg_name), continue; end
+        def = bd_defs.(alg_name);
         mask = strcmp(bd_algs, alg_name);
         bd_indices = find(mask);
         sel_run = T.run(sel_idx(a));
@@ -198,16 +213,7 @@ if ~isempty(breakdown_csv)
         match = find(bd_runs == sel_run, 1);
         if isempty(match), match = 1; end
         row = bd_indices(match);
-        % Last non-zero entry is the total
-        if strcmp(alg_name, 'CQRRT_linop')
-            total_ms = bd_times(row, 11) / 1000;
-        elseif strcmp(alg_name, 'CholQR')
-            total_ms = bd_times(row, 6) / 1000;
-        elseif strcmp(alg_name, 'sCholQR3')
-            total_ms = bd_times(row, 13) / 1000;
-        else
-            total_ms = 0;
-        end
+        total_ms = bd_times(row, def.total_col) / 1000;
         max_total_ms = max(max_total_ms, total_ms);
     end
     bd_ylim = [0, max_total_ms * 1.08];
@@ -217,6 +223,9 @@ if ~isempty(breakdown_csv)
 
     for a = 1:n_algs
         alg_name = unique_algs{a};
+        if ~isfield(bd_defs, alg_name), continue; end
+        def = bd_defs.(alg_name);
+
         mask = strcmp(bd_algs, alg_name);
         bd_indices = find(mask);
 
@@ -230,25 +239,9 @@ if ~isempty(breakdown_csv)
         row = bd_indices(match);
         times_us = bd_times(row, :);
 
-        nexttile
-        if strcmp(alg_name, 'CQRRT_linop')
-            % alloc, saso, qr, trtri, linop_precond, linop_gram, trmm_gram, potrf, finalize, rest, total
-            vals = times_us(1:10) / 1000;  % ms (exclude total)
-            labels_bd = {'Alloc', 'SASO', 'QR', 'TRTRI', 'LinOp(Prec)', 'LinOp(Gram)', 'TRMM', 'Chol', 'Finalize', 'Rest'};
-            bd_colors = {[0.6 0.6 0.6], '#2CA02C', '#1F77B4', '#E377C2', '#B15928', '#EDB120', '#FF7F0E', '#7E2F8E', '#17BECF', [0.8 0.8 0.8]};
-        elseif strcmp(alg_name, 'CholQR')
-            % alloc, materialize, gram, potrf, rest, total
-            vals = times_us(1:5) / 1000;
-            labels_bd = {'Alloc', 'LinOp', 'Gram', 'Chol', 'Rest'};
-            bd_colors = {[0.6 0.6 0.6], '#B15928', '#EDB120', '#7E2F8E', [0.8 0.8 0.8]};
-        elseif strcmp(alg_name, 'sCholQR3')
-            % alloc, materialize, gram1, potrf1, trsm1, syrk2, potrf2, update2, syrk3, potrf3, update3, rest, total
-            vals = times_us(1:12) / 1000;
-            labels_bd = {'Alloc', 'LinOp', 'Gram_1', 'Chol_1', 'Trsm_1', 'Syrk_2', 'Chol_2', 'Upd_2', 'Syrk_3', 'Chol_3', 'Upd_3', 'Rest'};
-            bd_colors = {[0.6 0.6 0.6], '#B15928', '#EDB120', '#CAB2D6', '#17BECF', '#FDBF6F', '#7E2F8E', '#FB9A99', '#FF7F0E', '#984EA3', '#E31A1C', [0.8 0.8 0.8]};
-        else
-            continue;
-        end
+        vals = times_us(1:def.n_entries) / 1000;  % ms (exclude total)
+        labels_bd = def.labels;
+        bd_colors = def.colors;
 
         % Filter out zero-time entries for cleaner legend
         nonzero = vals > 0;
@@ -256,6 +249,7 @@ if ~isempty(breakdown_csv)
         labels_nz = labels_bd(nonzero);
         colors_nz = bd_colors(nonzero);
 
+        nexttile
         bplot = bar(1, vals_nz, 'stacked');
         for i = 1:length(colors_nz)
             bplot(i).FaceColor = colors_nz{i};

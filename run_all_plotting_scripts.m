@@ -4,15 +4,12 @@ data_dir_cond = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-out
 data_dir_amg  = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\amg\';
 
 %% Scal benchmarks with k = 10^3, 10^6, 10^9
-%plot_scal_results(data_dir_scal, '20260224_102848_scaling_results.csv',
-%'20260224_102848_scaling_breakdown.csv', 'worst_ortho');
-%plot_scal_results(data_dir_scal, '20260224_104655_scaling_results.csv',
-%'20260224_104655_scaling_breakdown.csv', 'worst_ortho');
-%plot_scal_results(data_dir_scal, '20260224_105319_scaling_results.csv',
-%'20260224_105319_scaling_breakdown.csv', 'worst_ortho');
+%plot_scal_results(data_dir_scal, '20260224_102848_scaling_results.csv', '20260224_102848_scaling_breakdown.csv', 'worst_ortho');
+%plot_scal_results(data_dir_scal, '20260224_104655_scaling_results.csv', '20260224_104655_scaling_breakdown.csv', 'worst_ortho');
+%plot_scal_results(data_dir_scal, '20260224_105319_scaling_results.csv', '20260224_105319_scaling_breakdown.csv', 'worst_ortho');
 
 %% Case 1: Well-conditioned AMG base (κ ≈ 54), b_sz=64
-plot_gsvd_results(data_dir_amg, '20260227_114514_gsvd_results.csv', '20260227_114514_gsvd_svals.csv', '20260227_114514_gsvd_breakdown.csv', 'worst_ortho');
+plot_gsvd_results(data_dir_amg, '20260227_114514_gsvd_results.csv', '20260227_114514_gsvd_breakdown.csv', 'worst_ortho');
 
 %% Case 2: Ill-conditioned random V (κ ≈ 1.5e7), b_sz=64
-%plot_gsvd_results(data_dir_amg, '20260227_114525_gsvd_results.csv', '20260227_114525_gsvd_svals.csv', '20260227_114525_gsvd_breakdown.csv', 'worst_ortho');
+%plot_gsvd_results(data_dir_amg, '20260227_114525_gsvd_results.csv', '20260227_114525_gsvd_breakdown.csv', 'worst_ortho');
