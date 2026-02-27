@@ -12,7 +12,7 @@
 %   plot_mode     — 'best_speed' (default), 'worst_ortho', or 'best_ortho'
 %
 % Produces two figures:
-%   Figure 1 (2x1): Timing bars, orthogonality
+%   Figure 1 (3x1): Timing bars, orthogonality, memory
 %   Figure 2 (1x3): Runtime breakdown stacked bars per algorithm
 
 function plot_gsvd_results(data_dir, results_csv, svals_csv, breakdown_csv, plot_mode)
@@ -49,6 +49,8 @@ total_a    = T.total_a_time_us;
 total_b    = T.total_b_time_us;
 total_c    = T.total_c_time_us;
 ls_err     = T.ls_rel_error;
+peak_rss   = T.peak_rss_kb;
+analytical = T.analytical_kb;
 m_val      = T.m(1);
 n_val      = T.n(1);
 
@@ -80,12 +82,12 @@ for a = 1:n_algs
 end
 
 %% ------------------------------------------------------------------
-%  Figure 1: Main comparison (2x1 grid)
+%  Figure 1: Main comparison (3x1 grid)
 %  ------------------------------------------------------------------
-figure('Position', [100, 100, 800, 600]);
+figure('Position', [100, 100, 800, 900]);
 
 % --- Subplot 1: Timing bar chart ---
-subplot(2, 1, 1);
+subplot(3, 1, 1);
 
 bar_data = zeros(n_algs, 4);
 for a = 1:n_algs
@@ -115,7 +117,7 @@ for k = 1:4
 end
 
 % --- Subplot 2: Orthogonality comparison ---
-subplot(2, 1, 2);
+subplot(3, 1, 2);
 
 orth_vals = zeros(n_algs, 1);
 for a = 1:n_algs
@@ -135,6 +137,39 @@ set(gca, 'FontSize', 11);
 for a = 1:n_algs
     text(a, orth_vals(a) * 2, sprintf('%.1e', orth_vals(a)), ...
          'HorizontalAlignment', 'center', 'FontSize', 9);
+end
+
+% --- Subplot 3: Memory comparison (peak RSS vs analytical) ---
+subplot(3, 1, 3);
+
+mem_data = zeros(n_algs, 2);
+for a = 1:n_algs
+    i = sel_idx(a);
+    mem_data(a, 1) = peak_rss(i) / 1024;      % MB
+    mem_data(a, 2) = analytical(i) / 1024;     % MB
+end
+
+bm = bar(mem_data);
+set(gca, 'XTickLabel', unique_algs);
+ylabel('Memory (MB)', 'FontSize', 12);
+title('Peak Working Memory', 'FontSize', 14, 'FontWeight', 'bold');
+legend({'Peak RSS', 'Analytical'}, 'Location', 'northwest', 'FontSize', 10);
+grid on;
+set(gca, 'FontSize', 11);
+
+% Color scheme for memory bars
+bm(1).FaceColor = [0.2 0.6 0.4];   % teal - RSS
+bm(2).FaceColor = [0.8 0.5 0.2];   % orange - analytical
+
+% Add text labels on bars
+for a = 1:n_algs
+    for k = 1:2
+        if mem_data(a, k) > 0
+            text(bm(k).XEndPoints(a), mem_data(a, k) + max(mem_data(:)) * 0.02, ...
+                 sprintf('%.1f', mem_data(a, k)), ...
+                 'HorizontalAlignment', 'center', 'FontSize', 8);
+        end
+    end
 end
 
 sgtitle(sprintf('GSVD Benchmark (%d \\times %d)', m_val, n_val), ...
