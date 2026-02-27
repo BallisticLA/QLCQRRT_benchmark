@@ -1,0 +1,9 @@
+# GSVD Benchmark results
+# Date: Fri Feb 27 17:40:43 2026
+# Matrix dimensions: m=73631 n=4421
+# Runs per algorithm: 1
+# OpenMP threads: 128
+m,n,run,algorithm,chol_time_us,qr_time_us,orth_error,max_orth_cols,app_a_time_us,ls_rel_error,app_b_time_us,app_c_time_us,right_svec_orth_error,total_a_time_us,total_b_time_us,total_c_time_us,peak_rss_kb,analytical_kb
+73631,4421,0,CQRRT_linop,65563794,45016956,5.720884e-14,4421,0,0.000000e+00,0,0,0.000000e+00,45016956,45016956,45016956,1132976,752650
+73631,4421,0,CholQR,65563794,30177195,4.294052e-12,2514,0,0.000000e+00,0,0,0.000000e+00,30177195,30177195,30177195,753080,447221
+73631,4421,0,sCholQR3,65563794,48571455,3.451484e-15,4421,0,0.000000e+00,0,0,0.000000e+00,48571455,48571455,48571455,5551508,3001237

@@ -19,6 +19,13 @@ data_dir_100_b512 = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark
 %plot_gsvd_results(data_dir_amg, '20260227_114525_gsvd_results.csv', '20260227_114525_gsvd_breakdown.csv', 'worst_ortho');
 
 %% AMG 100x100 well-conditioned (κ ≈ 84), block size sweep (skip_apps)
-plot_gsvd_results(data_dir_100_b100, '20260227_152336_gsvd_results.csv', '20260227_152336_gsvd_breakdown.csv', 'worst_ortho');
-plot_gsvd_results(data_dir_100_b256, '20260227_153049_gsvd_results.csv', '20260227_153049_gsvd_breakdown.csv', 'worst_ortho');
-plot_gsvd_results(data_dir_100_b512, '20260227_153355_gsvd_results.csv', '20260227_153355_gsvd_breakdown.csv', 'worst_ortho');
+%plot_gsvd_results(data_dir_100_b100, '20260227_152336_gsvd_results.csv', '20260227_152336_gsvd_breakdown.csv', 'worst_ortho');
+%plot_gsvd_results(data_dir_100_b256, '20260227_153049_gsvd_results.csv', '20260227_153049_gsvd_breakdown.csv', 'worst_ortho');
+%plot_gsvd_results(data_dir_100_b512, '20260227_153355_gsvd_results.csv', '20260227_153355_gsvd_breakdown.csv', 'worst_ortho');
+
+%% FEM_Problem_1 (m=73631, n=4421), 128 threads, skip_apps, block size sweep
+data_dir_real = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\real\';
+
+plot_gsvd_results(data_dir_real, '20260227_165034_gsvd_results.csv', '20260227_165034_gsvd_breakdown.csv', 'worst_ortho');  % b=256
+plot_gsvd_results(data_dir_real, '20260227_174043_gsvd_results.csv', '20260227_174043_gsvd_breakdown.csv', 'worst_ortho');  % b=512
+plot_gsvd_results(data_dir_real, '20260227_183047_gsvd_results.csv', '20260227_183047_gsvd_breakdown.csv', 'worst_ortho');  % b=1024
