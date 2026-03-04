@@ -319,9 +319,13 @@ if ~isempty(breakdown_csv)
         colors_nz  = group_colors(nonzero);
 
         nexttile
-        bplot = bar(1, vals_nz, 'stacked');
-        for i = 1:length(colors_nz)
-            bplot(i).FaceColor = colors_nz{i};
+        % Flip data so first operation (Alloc) stacks on top of bar,
+        % visually matching the legend which reads top-to-bottom.
+        vals_bar   = fliplr(vals_nz);
+        colors_bar = fliplr(colors_nz);
+        bplot = bar(1, vals_bar, 'stacked');
+        for i = 1:length(colors_bar)
+            bplot(i).FaceColor = colors_bar{i};
             bplot(i).FaceAlpha = 0.9;
         end
         ylim(bd_ylim);
@@ -329,9 +333,8 @@ if ~isempty(breakdown_csv)
             ylabel('Time (ms)', 'FontSize', 10);
         end
         title(alg_name, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'none');
-        % Pass handles explicitly so legend lists them in algorithmic order
-        % (first group = top of legend = bottom of bar)
-        lgd = legend(bplot, labels_nz);
+        % Legend: flip handles so top-of-bar (Alloc) = top-of-legend
+        lgd = legend(flip(bplot), labels_nz);
         lgd.FontSize = 7;
         lgd.Location = 'eastoutside';
         lgd.Interpreter = 'none';
