@@ -97,7 +97,7 @@ for a = 1:n_algs
 end
 
 b = bar(bar_data);
-set(gca, 'XTickLabel', unique_algs);
+set(gca, 'XTickLabel', unique_algs, 'TickLabelInterpreter', 'none');
 ylabel('Time (ms)', 'FontSize', 12);
 title(sprintf('Timing (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bold');
 legend({'Q-less QR', 'App (a): Gen. LS', 'App (b): Gen. svals', 'App (c): Gen. svecs'}, ...
@@ -125,7 +125,7 @@ end
 bh = bar(orth_vals);
 bh.FaceColor = [0.2 0.4 0.8];
 set(gca, 'YScale', 'log');
-set(gca, 'XTickLabel', unique_algs);
+set(gca, 'XTickLabel', unique_algs, 'TickLabelInterpreter', 'none');
 ylabel('$\|Q^TQ - I\|_F / \sqrt{n}$', 'Interpreter', 'latex', 'FontSize', 12);
 title(sprintf('Orthogonality (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
@@ -133,8 +133,8 @@ set(gca, 'FontSize', 11);
 
 % Add text labels on bars
 for a = 1:n_algs
-    text(a, orth_vals(a) * 2, sprintf('%.1e', orth_vals(a)), ...
-         'HorizontalAlignment', 'center', 'FontSize', 9);
+    text(a, orth_vals(a) * 1.5, sprintf('%.1e', orth_vals(a)), ...
+         'HorizontalAlignment', 'center', 'FontSize', 8);
 end
 
 % --- Subplot 3: Memory comparison (peak RSS vs analytical) ---
@@ -148,7 +148,7 @@ for a = 1:n_algs
 end
 
 bm = bar(mem_data);
-set(gca, 'XTickLabel', unique_algs);
+set(gca, 'XTickLabel', unique_algs, 'TickLabelInterpreter', 'none');
 ylabel('Memory (MB)', 'FontSize', 12);
 title('Peak Working Memory', 'FontSize', 14, 'FontWeight', 'bold');
 legend({'Peak RSS', 'Analytical'}, 'Location', 'northwest', 'FontSize', 10);
@@ -159,13 +159,13 @@ set(gca, 'FontSize', 11);
 bm(1).FaceColor = [0.2 0.6 0.4];   % teal - RSS
 bm(2).FaceColor = [0.8 0.5 0.2];   % orange - analytical
 
-% Add text labels on bars
+% Add text labels on bars (inside bar, near top, to avoid escaping subplot)
 for a = 1:n_algs
     for k = 1:2
         if mem_data(a, k) > 0
-            text(bm(k).XEndPoints(a), mem_data(a, k) + max(mem_data(:)) * 0.02, ...
-                 sprintf('%.1f', mem_data(a, k)), ...
-                 'HorizontalAlignment', 'center', 'FontSize', 8);
+            text(bm(k).XEndPoints(a), mem_data(a, k) * 0.95, ...
+                 sprintf('%.0f', mem_data(a, k)), ...
+                 'HorizontalAlignment', 'center', 'VerticalAlignment', 'top', 'FontSize', 7);
         end
     end
 end
@@ -237,7 +237,7 @@ if ~isempty(breakdown_csv)
                 {'Gemm',    [8 13],       '#D95F02'}
                 {'Chol',    [4 9 14],     '#7E2F8E'}
                 {'Update',  [5 10 15],    '#E31A1C'}
-                {'Q\_Mat',  [16],         '#4DBEEE'}
+                {'Q Mat',  [16],         '#4DBEEE'}
                 {'Rest',    [17],         [0.8 0.8 0.8]}
             }}), ...
         'sCholQR3_basic', struct('total_col', 15, ...
@@ -248,7 +248,7 @@ if ~isempty(breakdown_csv)
                 {'Syrk',    [7 10],       '#FDBF6F'}
                 {'Chol',    [4 8 11],     '#7E2F8E'}
                 {'Update',  [5 9 12],     '#E31A1C'}
-                {'Q\_Mat',  [13],         '#4DBEEE'}
+                {'Q Mat',  [13],         '#4DBEEE'}
                 {'Rest',    [14],         [0.8 0.8 0.8]}
             }}) ...
     );
@@ -327,10 +327,12 @@ if ~isempty(breakdown_csv)
         if a == 1
             ylabel('Time (ms)', 'FontSize', 10);
         end
-        title(alg_name, 'FontSize', 12, 'FontWeight', 'bold');
-        lgd = legend(labels_nz{:});
+        title(alg_name, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'none');
+        % Reverse legend order so it matches the visual stacking (bottom-to-top)
+        lgd = legend(flip(bplot), flip(labels_nz));
         lgd.FontSize = 7;
         lgd.Location = 'eastoutside';
+        lgd.Interpreter = 'none';
         set(gca, 'XTick', []);
         grid on;
         set(gca, 'FontSize', 10);
