@@ -185,22 +185,72 @@ if ~isempty(breakdown_csv)
     % Breakdown times are in columns t0..t12
     bd_times = T_bd{:, 5:end};  % skip m, n, run, algorithm
 
-    % Per-algorithm breakdown definitions:
-    %   n_entries = number of breakdown entries (excluding total)
-    %   total_col = 1-based column in bd_times for the total
+    % Per-algorithm breakdown definitions using display groups.
+    % Each group is {label, [1-based column indices in bd_times], color}.
+    % Columns within a group are summed for the stacked bar.
+    % total_col gives the 1-based column index of the total time.
+    %
+    % Unified color palette (same operation type = same color across all
+    % subplots for easy visual comparison):
+    %   Alloc       = [0.6 0.6 0.6]  (medium gray)
+    %   Sketch      = #1F77B4         (blue)
+    %   QR+Tri.Inv  = #17BECF         (teal)
+    %   Fwd (A*x)   = #2CA02C         (green)
+    %   Adj (A^Tx)  = #EDB120         (gold)
+    %   Gemm/TRMM   = #D95F02         (dark orange)
+    %   Syrk        = #FDBF6F         (light gold)
+    %   Chol        = #7E2F8E         (purple)
+    %   Update      = #E31A1C         (red)
+    %   Q_Mat       = #4DBEEE         (cyan)
+    %   Rest        = [0.8 0.8 0.8]   (light gray)
+    %
+    % CSV column layouts (1-based indices into bd_times):
+    %   CQRRT_linop (11): 1=alloc 2=sketch 3=qr 4=tri_inv 5=fwd 6=adj 7=trmm 8=chol 9=finalize 10=rest 11=total
+    %   CholQR      (6):  1=alloc 2=fwd 3=adj 4=chol 5=rest 6=total
+    %   sCholQR3    (18): 1=alloc 2=fwd1 3=adj1 4=chol1 5=upd1 6=fwd2 7=adj2 8=gemm2 9=chol2 10=upd2 11=fwd3 12=adj3 13=gemm3 14=chol3 15=upd3 16=q_mat 17=rest 18=total
+    %   sCholQR3_basic (15): 1=alloc 2=fwd1 3=adj1 4=chol1 5=trsm1 6=fwd_q 7=syrk2 8=chol2 9=upd2 10=syrk3 11=chol3 12=upd3 13=q_mat 14=rest 15=total
+
     bd_defs = struct( ...
-        'CQRRT_linop', struct('n_entries', 10, 'total_col', 11, ...
-            'labels', {{'Alloc', 'SASO', 'QR', 'TRTRI', 'LinOp(Prec)', 'LinOp(Gram)', 'TRMM', 'Chol', 'Finalize', 'Rest'}}, ...
-            'colors', {{[0.6 0.6 0.6], '#2CA02C', '#1F77B4', '#E377C2', '#B15928', '#EDB120', '#FF7F0E', '#7E2F8E', '#17BECF', [0.8 0.8 0.8]}}), ...
-        'CholQR', struct('n_entries', 5, 'total_col', 6, ...
-            'labels', {{'Alloc', 'LinOp', 'Gram', 'Chol', 'Rest'}}, ...
-            'colors', {{[0.6 0.6 0.6], '#B15928', '#EDB120', '#7E2F8E', [0.8 0.8 0.8]}}), ...
-        'sCholQR3', struct('n_entries', 12, 'total_col', 13, ...
-            'labels', {{'Alloc', 'Gram_1', 'Chol_1', 'M_Upd_1', 'Gram_2', 'Chol_2', 'Upd_2', 'Gram_3', 'Chol_3', 'Upd_3', 'Q_Mat', 'Rest'}}, ...
-            'colors', {{[0.6 0.6 0.6], '#EDB120', '#CAB2D6', '#17BECF', '#FDBF6F', '#7E2F8E', '#FB9A99', '#FF7F0E', '#984EA3', '#E31A1C', '#2CA02C', [0.8 0.8 0.8]}}), ...
-        'sCholQR3_basic', struct('n_entries', 12, 'total_col', 13, ...
-            'labels', {{'Alloc', 'Gram_1', 'Chol_1', 'Q_Factor', 'Syrk_2', 'Chol_2', 'Upd_2', 'Syrk_3', 'Chol_3', 'Upd_3', 'Q_Mat', 'Rest'}}, ...
-            'colors', {{[0.6 0.6 0.6], '#EDB120', '#CAB2D6', '#B15928', '#FDBF6F', '#7E2F8E', '#FB9A99', '#FF7F0E', '#984EA3', '#E31A1C', '#2CA02C', [0.8 0.8 0.8]}}) ...
+        'CQRRT_linop', struct('total_col', 11, ...
+            'groups', {{
+                {'Alloc',      [1],    [0.6 0.6 0.6]}
+                {'Sketch',     [2],    '#1F77B4'}
+                {'QR+Tri.Inv', [3 4],  '#17BECF'}
+                {'Fwd',        [5],    '#2CA02C'}
+                {'Adj',        [6],    '#EDB120'}
+                {'TRMM',       [7],    '#D95F02'}
+                {'Chol',       [8],    '#7E2F8E'}
+                {'Finalize+Rest', [9 10], '#E31A1C'}
+            }}), ...
+        'CholQR', struct('total_col', 6, ...
+            'groups', {{
+                {'Alloc',      [1],    [0.6 0.6 0.6]}
+                {'Fwd',        [2],    '#2CA02C'}
+                {'Adj',        [3],    '#EDB120'}
+                {'Chol+Rest',  [4 5],  '#7E2F8E'}
+            }}), ...
+        'sCholQR3', struct('total_col', 18, ...
+            'groups', {{
+                {'Alloc',   [1],          [0.6 0.6 0.6]}
+                {'Fwd',     [2 6 11],     '#2CA02C'}
+                {'Adj',     [3 7 12],     '#EDB120'}
+                {'Gemm',    [8 13],       '#D95F02'}
+                {'Chol',    [4 9 14],     '#7E2F8E'}
+                {'Update',  [5 10 15],    '#E31A1C'}
+                {'Q\_Mat',  [16],         '#4DBEEE'}
+                {'Rest',    [17],         [0.8 0.8 0.8]}
+            }}), ...
+        'sCholQR3_basic', struct('total_col', 15, ...
+            'groups', {{
+                {'Alloc',   [1],          [0.6 0.6 0.6]}
+                {'Fwd',     [2 6],        '#2CA02C'}
+                {'Adj',     [3],          '#EDB120'}
+                {'Syrk',    [7 10],       '#FDBF6F'}
+                {'Chol',    [4 8 11],     '#7E2F8E'}
+                {'Update',  [5 9 12],     '#E31A1C'}
+                {'Q\_Mat',  [13],         '#4DBEEE'}
+                {'Rest',    [14],         [0.8 0.8 0.8]}
+            }}) ...
     );
 
     % First pass: compute max total time across algorithms for uniform y-axis
@@ -233,6 +283,7 @@ if ~isempty(breakdown_csv)
         alg_name = unique_algs{a};
         if ~isfield(bd_defs, alg_name), continue; end
         def = bd_defs.(alg_name);
+        groups = def.groups;
 
         mask = strcmp(bd_algs, alg_name);
         bd_indices = find(mask);
@@ -247,15 +298,24 @@ if ~isempty(breakdown_csv)
         row = bd_indices(match);
         times_us = bd_times(row, :);
 
-        vals = times_us(1:def.n_entries) / 1000;  % ms (exclude total)
-        labels_bd = def.labels;
-        bd_colors = def.colors;
+        % Sum columns per group
+        n_groups = numel(groups);
+        group_vals   = zeros(1, n_groups);
+        group_labels = cell(1, n_groups);
+        group_colors = cell(1, n_groups);
+        for g = 1:n_groups
+            grp = groups{g};
+            group_labels{g} = grp{1};
+            group_colors{g} = grp{3};
+            cols = grp{2};
+            group_vals(g) = sum(times_us(cols)) / 1000;  % ms
+        end
 
-        % Filter out zero-time entries for cleaner legend
-        nonzero = vals > 0;
-        vals_nz = vals(nonzero);
-        labels_nz = labels_bd(nonzero);
-        colors_nz = bd_colors(nonzero);
+        % Filter out zero-sum groups for cleaner legend
+        nonzero = group_vals > 0;
+        vals_nz    = group_vals(nonzero);
+        labels_nz  = group_labels(nonzero);
+        colors_nz  = group_colors(nonzero);
 
         nexttile
         bplot = bar(1, vals_nz, 'stacked');
