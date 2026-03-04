@@ -131,10 +131,11 @@ title(sprintf('Orthogonality (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bo
 grid on;
 set(gca, 'FontSize', 11);
 
-% Add text labels on bars
+% Add text labels inside bars (log scale — place at geometric midpoint)
 for a = 1:n_algs
-    text(a, orth_vals(a) * 1.5, sprintf('%.1e', orth_vals(a)), ...
-         'HorizontalAlignment', 'center', 'FontSize', 8);
+    yl = ylim;
+    text(a, orth_vals(a) / 2, sprintf('%.1e', orth_vals(a)), ...
+         'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'FontSize', 8);
 end
 
 % --- Subplot 3: Memory comparison (peak RSS vs analytical) ---
@@ -159,13 +160,13 @@ set(gca, 'FontSize', 11);
 bm(1).FaceColor = [0.2 0.6 0.4];   % teal - RSS
 bm(2).FaceColor = [0.8 0.5 0.2];   % orange - analytical
 
-% Add text labels on bars (inside bar, near top, to avoid escaping subplot)
+% Add text labels inside bars
 for a = 1:n_algs
     for k = 1:2
         if mem_data(a, k) > 0
-            text(bm(k).XEndPoints(a), mem_data(a, k) * 0.95, ...
+            text(bm(k).XEndPoints(a), mem_data(a, k) * 0.5, ...
                  sprintf('%.0f', mem_data(a, k)), ...
-                 'HorizontalAlignment', 'center', 'VerticalAlignment', 'top', 'FontSize', 7);
+                 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'FontSize', 7);
         end
     end
 end
@@ -328,8 +329,9 @@ if ~isempty(breakdown_csv)
             ylabel('Time (ms)', 'FontSize', 10);
         end
         title(alg_name, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'none');
-        % Reverse legend order so it matches the visual stacking (bottom-to-top)
-        lgd = legend(flip(bplot), flip(labels_nz));
+        % Pass handles explicitly so legend lists them in algorithmic order
+        % (first group = top of legend = bottom of bar)
+        lgd = legend(bplot, labels_nz);
         lgd.FontSize = 7;
         lgd.Location = 'eastoutside';
         lgd.Interpreter = 'none';
