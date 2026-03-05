@@ -6,11 +6,16 @@
 
 data_dir = 'input_matrices';
 
-%% Load matrices
-fprintf('Loading matrices...\n');
-K = mmread(fullfile(data_dir, 'FEM_Problem_2_K.mtx'));
-V = mmread(fullfile(data_dir, 'FEM_Problem_2_V.mtx'));
-L = mmread(fullfile(data_dir, 'FEM_Problem_2_L.mtx'));
+%% Load matrices from .mat file
+fprintf('Loading FEM_Problem_2.mat...\n');
+tic;
+S = load(fullfile(data_dir, 'FEM_Problem_2.mat'));
+P = S.Problem;
+K = P.K;
+V = P.V;
+L = P.L;
+clear S P;
+fprintf('  Loaded in %.1fs\n', toc);
 [m, n] = size(V);
 fprintf('  K: %d x %d, nnz=%d\n', size(K,1), size(K,2), nnz(K));
 fprintf('  V: %d x %d, nnz=%d\n', m, n, nnz(V));
@@ -19,6 +24,7 @@ fprintf('  L: %d x %d, nnz=%d\n', size(L,1), size(L,2), nnz(L));
 %% Check L from .mat: should satisfy L*L' = K
 fprintf('\nVerifying L from .mat file:\n');
 fprintf('  ||L*L'' - K|| / ||K|| = %.4e\n', norm(L*L' - K, 'fro') / norm(K, 'fro'));
+fprintf('  L is lower triangular: %d\n', istril(L));
 fprintf('  # zero diagonal entries: %d / %d\n', sum(abs(diag(L)) == 0), m);
 
 %% 1. MATLAB's own Cholesky of K (with fill-reducing ordering)
