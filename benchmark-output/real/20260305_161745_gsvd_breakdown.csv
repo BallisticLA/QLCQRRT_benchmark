@@ -1,0 +1,26 @@
+# GSVD Benchmark runtime breakdown
+# Date: Thu Mar  5 16:17:45 2026
+# Matrix dimensions: m=75860 n=4812
+# Runs per algorithm: 2
+# OpenMP threads: 16
+# K_file: FEM_Problem_2_K.mtx
+# V_file: FEM_Problem_2_V.mtx
+# d_factor: 2
+# sketch_nnz: 4
+# block_size: 256
+# skip_apps: 0
+# compute_cond: 1
+# Times are in microseconds
+# CQRRT_linop breakdown (11): alloc, sketch, qr, tri_inv, fwd, adj, trmm, chol, finalize, rest, total
+# CholQR breakdown (6): alloc, fwd, adj, chol, rest, total
+# sCholQR3 breakdown (18): alloc, fwd1, adj1, chol1, upd1, fwd2, adj2, gemm2, chol2, upd2, fwd3, adj3, gemm3, chol3, upd3, q_mat, rest, total
+# sCholQR3_basic breakdown (15): alloc, fwd1, adj1, chol1, trsm1, fwd_q, syrk2, chol2, upd2, syrk3, chol3, upd3, q_mat, rest, total
+m,n,run,algorithm,t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17
+75860,4812,0,CQRRT_linop,6,1619171,390395,106118,1714166,1726119,82413,33769,85141,1002,5758300,0,0,0,0,0,0,0
+75860,4812,1,CQRRT_linop,5,1755317,377371,108487,1706206,1728664,95782,25746,91087,1193,5889858,0,0,0,0,0,0,0
+75860,4812,0,CholQR,34798,1719037,1741574,26954,923,3523286,0,0,0,0,0,0,0,0,0,0,0,0
+75860,4812,1,CholQR,34693,1722511,1744844,25643,830,3528521,0,0,0,0,0,0,0,0,0,0,0,0
+75860,4812,0,sCholQR3,76844,1716930,1718055,51514,74021,1775575,1739121,136929,50334,152319,1754064,1719737,136351,50201,81964,0,115,11234074
+75860,4812,1,sCholQR3,76382,1715009,1740161,52080,69915,1754984,1736071,136310,50629,174771,1739744,1723992,137700,50354,97942,0,119,11256163
+75860,4812,0,sCholQR3_basic,76470,1677512,1666203,51512,75299,1688352,1235068,51015,1100964,1115217,50603,90345,0,31,8878591,0,0,0
+75860,4812,1,sCholQR3_basic,76400,1684589,1654316,51507,70338,1683493,1235520,50487,1092297,1188645,49826,83533,0,33,8920984,0,0,0

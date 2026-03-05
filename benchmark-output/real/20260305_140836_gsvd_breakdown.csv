@@ -3,6 +3,13 @@
 # Matrix dimensions: m=75860 n=4812
 # Runs per algorithm: 3
 # OpenMP threads: 128
+# K_file: FEM_Problem_2_K.mtx
+# V_file: FEM_Problem_2_V.mtx
+# d_factor: 2
+# sketch_nnz: 4
+# block_size: 256
+# skip_apps: 0
+# compute_cond: 1
 # Times are in microseconds
 # CQRRT_linop breakdown (11): alloc, sketch, qr, tri_inv, fwd, adj, trmm, chol, finalize, rest, total
 # CholQR breakdown (6): alloc, fwd, adj, chol, rest, total

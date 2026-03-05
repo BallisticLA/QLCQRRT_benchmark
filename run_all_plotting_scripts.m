@@ -26,6 +26,17 @@ data_dir_100_b512 = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark
 %% FEM_Problem_1 (m=73631, n=4421), 128 threads, skip_apps, block size sweep
 data_dir_real = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\real\';
 
-plot_gsvd_results(data_dir_real, '20260227_165034_gsvd_results.csv', '20260227_165034_gsvd_breakdown.csv', 'worst_ortho');  % b=256
-plot_gsvd_results(data_dir_real, '20260227_174043_gsvd_results.csv', '20260227_174043_gsvd_breakdown.csv', 'worst_ortho');  % b=512
-plot_gsvd_results(data_dir_real, '20260227_183047_gsvd_results.csv', '20260227_183047_gsvd_breakdown.csv', 'worst_ortho');  % b=1024
+%plot_gsvd_results(data_dir_real, '20260227_165034_gsvd_results.csv', '20260227_165034_gsvd_breakdown.csv', 'worst_ortho');  % b=256
+%plot_gsvd_results(data_dir_real, '20260227_174043_gsvd_results.csv', '20260227_174043_gsvd_breakdown.csv', 'worst_ortho');  % b=512
+%plot_gsvd_results(data_dir_real, '20260227_183047_gsvd_results.csv', '20260227_183047_gsvd_breakdown.csv', 'worst_ortho');  % b=1024
+
+%% FEM_Problem_2 (m=75860, n=4812), 128 threads, block size sweep
+plot_gsvd_results(data_dir_real, '20260305_140836_gsvd_results.csv', '20260305_140836_gsvd_breakdown.csv', 'worst_ortho');  % 128t, b=256
+plot_gsvd_results(data_dir_real, '20260305_142015_gsvd_results.csv', '20260305_142015_gsvd_breakdown.csv', 'worst_ortho');  % 128t, b=512
+plot_gsvd_results(data_dir_real, '20260305_143356_gsvd_results.csv', '20260305_143356_gsvd_breakdown.csv', 'worst_ortho');  % 128t, b=1024
+
+%% FEM_Problem_2 (m=75860, n=4812), thread scaling (b=256)
+plot_gsvd_results(data_dir_real, '20260305_160014_gsvd_results.csv', '20260305_160014_gsvd_breakdown.csv', 'worst_ortho');  % 8t, b=256
+plot_gsvd_results(data_dir_real, '20260305_161745_gsvd_results.csv', '20260305_161745_gsvd_breakdown.csv', 'worst_ortho');  % 16t, b=256
+plot_gsvd_results(data_dir_real, '20260305_162725_gsvd_results.csv', '20260305_162725_gsvd_breakdown.csv', 'worst_ortho');  % 32t, b=256
+plot_gsvd_results(data_dir_real, '20260305_163520_gsvd_results.csv', '20260305_163520_gsvd_breakdown.csv', 'worst_ortho');  % 64t, b=256

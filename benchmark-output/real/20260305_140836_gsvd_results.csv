@@ -3,6 +3,13 @@
 # Matrix dimensions: m=75860 n=4812
 # Runs per algorithm: 3
 # OpenMP threads: 128
+# K_file: FEM_Problem_2_K.mtx
+# V_file: FEM_Problem_2_V.mtx
+# d_factor: 2
+# sketch_nnz: 4
+# block_size: 256
+# skip_apps: 0
+# compute_cond: 1
 m,n,run,algorithm,chol_time_us,qr_time_us,orth_error,max_orth_cols,app_a_time_us,ls_rel_error,app_b_time_us,app_c_time_us,right_svec_orth_error,total_a_time_us,total_b_time_us,total_c_time_us,peak_rss_kb,analytical_kb
 75860,4812,0,CQRRT_linop,189416,5250671,2.683073e-10,1433,31659,1.546305e-04,1356399,3350370,8.390082e-15,5282330,6607070,8601041,881880,694460
 75860,4812,1,CQRRT_linop,189416,5252882,2.151886e-10,1433,49158,1.581694e-04,1326795,3415363,8.463926e-15,5302040,6579677,8668245,848496,694460
