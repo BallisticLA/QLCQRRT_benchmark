@@ -130,13 +130,9 @@ ylabel('$\|Q^TQ - I\|_F / \sqrt{n}$', 'Interpreter', 'latex', 'FontSize', 12);
 title(sprintf('Orthogonality (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
 set(gca, 'FontSize', 11);
-
-% Add text labels inside bars (log scale — place at geometric midpoint)
-for a = 1:n_algs
-    yl = ylim;
-    text(a, orth_vals(a) / 2, sprintf('%.1e', orth_vals(a)), ...
-         'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'FontSize', 8);
-end
+% Expand y-axis to fit all bars with headroom (log scale)
+yl = ylim;
+ylim([yl(1) / 10, max(orth_vals) * 10]);
 
 % --- Subplot 3: Memory comparison (peak RSS vs analytical) ---
 subplot(3, 1, 3);
@@ -160,16 +156,8 @@ set(gca, 'FontSize', 11);
 bm(1).FaceColor = [0.2 0.6 0.4];   % teal - RSS
 bm(2).FaceColor = [0.8 0.5 0.2];   % orange - analytical
 
-% Add text labels inside bars
-for a = 1:n_algs
-    for k = 1:2
-        if mem_data(a, k) > 0
-            text(bm(k).XEndPoints(a), mem_data(a, k) * 0.5, ...
-                 sprintf('%.0f', mem_data(a, k)), ...
-                 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'FontSize', 7);
-        end
-    end
-end
+% Ensure y-axis has headroom for all bars
+ylim([0, max(mem_data(:)) * 1.15]);
 
 sgtitle(sprintf('GSVD Benchmark (%d \\times %d)', m_val, n_val), ...
     'FontSize', 15, 'FontWeight', 'bold');
