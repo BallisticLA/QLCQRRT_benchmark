@@ -1,11 +1,13 @@
 
-data_dir_scal = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\scaling\';
-data_dir_cond = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\conditioning\';
-data_dir_amg  = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\amg\';
-
-data_dir_100_b100 = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\amg_100x100_b100\';
-data_dir_100_b256 = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\amg_100x100_b256\';
-data_dir_100_b512 = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\amg_100x100_b512\';
+% Resolve paths relative to this script's location (works on any machine)
+script_dir = fileparts(mfilename('fullpath'));
+data_dir_scal     = fullfile(script_dir, 'benchmark-output', 'scaling');
+data_dir_cond     = fullfile(script_dir, 'benchmark-output', 'conditioning');
+data_dir_amg      = fullfile(script_dir, 'benchmark-output', 'amg');
+data_dir_100_b100 = fullfile(script_dir, 'benchmark-output', 'amg_100x100_b100');
+data_dir_100_b256 = fullfile(script_dir, 'benchmark-output', 'amg_100x100_b256');
+data_dir_100_b512 = fullfile(script_dir, 'benchmark-output', 'amg_100x100_b512');
+data_dir_real     = fullfile(script_dir, 'benchmark-output', 'real');
 
 %% Scal benchmarks with k = 10^3, 10^6, 10^9
 %plot_scal_results(data_dir_scal, '20260224_102848_scaling_results.csv', '20260224_102848_scaling_breakdown.csv', 'worst_ortho');
@@ -24,8 +26,6 @@ data_dir_100_b512 = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark
 %plot_gsvd_results(data_dir_100_b512, '20260227_153355_gsvd_results.csv', '20260227_153355_gsvd_breakdown.csv', 'worst_ortho');
 
 %% FEM_Problem_1 (m=73631, n=4421), 128 threads, skip_apps, block size sweep
-data_dir_real = 'C:\Users\mymel\Documents\GitHub\QLCQRRT_benchmark\benchmark-output\real\';
-
 %plot_gsvd_results(data_dir_real, '20260227_165034_gsvd_results.csv', '20260227_165034_gsvd_breakdown.csv', 'worst_ortho');  % b=256
 %plot_gsvd_results(data_dir_real, '20260227_174043_gsvd_results.csv', '20260227_174043_gsvd_breakdown.csv', 'worst_ortho');  % b=512
 %plot_gsvd_results(data_dir_real, '20260227_183047_gsvd_results.csv', '20260227_183047_gsvd_breakdown.csv', 'worst_ortho');  % b=1024
