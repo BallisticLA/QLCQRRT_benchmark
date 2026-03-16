@@ -1,29 +1,54 @@
 %% resize_fem_pair.m — Generate a resized (K, V) FEM matrix pair
 %
-% Usage:
+% Modes that scale both m and n (m/n ratio preserved):
+%
 %   resize_fem_pair(K_file, V_file, output_dir, 'shrink', p)
 %       Extract the p×p principal submatrix of K and first p rows of V.
 %       Drops V columns that become entirely zero after the row cut.
 %       Output: <base>_shrink<p>_K.mtx, <base>_shrink<p>_V.mtx
 %
 %   resize_fem_pair(K_file, V_file, output_dir, 'expand', k)
-%       Stack k block-diagonal copies: K_big = kron(I_k, K), V_big = kron(I_k, V).
-%       kappa(L^{-1}V) is exactly preserved by construction.
+%       K_big = kron(I_k, K),  V_big = kron(I_k, V)  →  k*m × k*n.
+%       kappa(L^{-1}V) exactly preserved.
 %       Output: <base>_expand<k>_K.mtx, <base>_expand<k>_V.mtx
+%
+%   resize_fem_pair(K_file, V_file, output_dir, 'target', m_target)
+%       Expand+trim to exactly m_target rows; n scales with k.
+%       kappa exactly preserved if m_target is a multiple of m.
+%       Output: <base>_target<m_target>_K.mtx, <base>_target<m_target>_V.mtx
+%
+% Modes that scale only m (n held fixed, kappa exactly preserved):
+%
+%   resize_fem_pair(K_file, V_file, output_dir, 'expand_rows', k)
+%       K_big = kron(I_k, K),  V_big = repmat(V, k, 1)  →  k*m × n.
+%       L_big^{-1} V_big = [L^{-1}V; ...; L^{-1}V]: singular values scale
+%       by sqrt(k), ratio unchanged.  kappa exactly preserved.
+%       Output: <base>_expandr<k>_K.mtx, <base>_expandr<k>_V.mtx
+%
+%   resize_fem_pair(K_file, V_file, output_dir, 'target_rows', m_target)
+%       Expand+trim to exactly m_target rows; n is always held fixed.
+%       kappa exactly preserved if m_target is a multiple of m.
+%       Output: <base>_targetr<m_target>_K.mtx, <base>_targetr<m_target>_V.mtx
 %
 %   <base> is derived from K_file by stripping the trailing _K.mtx suffix.
 %
 % Example:
 %   dir = '/home/mymel/data/QLCQRRT_benchmark/input_matrices';
 %   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'shrink', 30000);
+%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'shrink',      30000);
 %   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'expand', 3);
+%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'expand',      3);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'expand_rows', 3);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'target',      200000);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'target_rows', 200000);
 
 function resize_fem_pair(K_file, V_file, output_dir, mode, param)
 
-if ~ismember(mode, {'shrink', 'expand'})
-    error('resize_fem_pair: mode must be ''shrink'' or ''expand''');
+if ~ismember(mode, {'shrink', 'expand', 'expand_rows', 'target', 'target_rows'})
+    error('resize_fem_pair: unknown mode ''%s''', mode);
 end
 if param ~= floor(param) || param <= 0
     error('resize_fem_pair: param must be a positive integer');
@@ -71,6 +96,103 @@ switch mode
             m, n, nnz(V), k*m, k*n, nnz(V_new));
         fprintf('  Note: kappa(L^{-1}V) is exactly preserved.\n');
         tag = sprintf('expand%d', k);
+
+    case 'expand_rows'
+        k = param;
+        fprintf('\nExpanding rows by factor %d (n held fixed) ...\n', k);
+        K_new = kron(speye(k), K);
+        V_new = repmat(V, k, 1);
+        fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+            m, m, nnz(K), k*m, k*m, nnz(K_new));
+        fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+            m, n, nnz(V), k*m, n, nnz(V_new));
+        fprintf('  Note: kappa(L^{-1}V) is exactly preserved.\n');
+        tag = sprintf('expandr%d', k);
+
+    case 'target'
+        m_target = param;
+        if m_target == m
+            error('target size equals current m=%d; nothing to do', m);
+        elseif m_target < m
+            % pure shrink
+            fprintf('\nShrinking to target %d x %d ...\n', m_target, m_target);
+            K_new = K(1:m_target, 1:m_target);
+            V_new = V(1:m_target, :);
+            keep  = any(V_new, 1);
+            V_new = V_new(:, keep);
+            n_new = sum(keep);
+            fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+                m, m, nnz(K), m_target, m_target, nnz(K_new));
+            fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d] (%d zero cols dropped)\n', ...
+                m, n, nnz(V), m_target, n_new, nnz(V_new), n - n_new);
+        else
+            % expand then trim
+            k = ceil(m_target / m);
+            fprintf('\nTargeting m=%d: expanding by k=%d (to %d), then trimming ...\n', ...
+                m_target, k, k*m);
+            K_tmp = kron(speye(k), K);
+            V_tmp = kron(speye(k), V);
+            if k * m == m_target
+                K_new = K_tmp;
+                V_new = V_tmp;
+                n_new = k * n;
+                fprintf('  Exact multiple — no trim needed. kappa(L^{-1}V) exactly preserved.\n');
+            else
+                K_new = K_tmp(1:m_target, 1:m_target);
+                V_new = V_tmp(1:m_target, :);
+                keep  = any(V_new, 1);
+                V_new = V_new(:, keep);
+                n_new = sum(keep);
+                fprintf('  Trimmed %d rows (%.1f%% of last copy). kappa may differ slightly.\n', ...
+                    k*m - m_target, 100*(k*m - m_target)/m);
+            end
+            fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+                m, m, nnz(K), m_target, m_target, nnz(K_new));
+            fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+                m, n, nnz(V), m_target, n_new, nnz(V_new));
+        end
+        tag = sprintf('target%d', m_target);
+
+    case 'target_rows'
+        m_target = param;
+        if m_target == m
+            error('target size equals current m=%d; nothing to do', m);
+        elseif m_target < m
+            fprintf('\nShrinking to target %d x %d (n held fixed) ...\n', m_target, m_target);
+            K_new = K(1:m_target, 1:m_target);
+            V_new = V(1:m_target, :);
+            keep  = any(V_new, 1);
+            V_new = V_new(:, keep);
+            n_new = sum(keep);
+            fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+                m, m, nnz(K), m_target, m_target, nnz(K_new));
+            fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d] (%d zero cols dropped)\n', ...
+                m, n, nnz(V), m_target, n_new, nnz(V_new), n - n_new);
+        else
+            k = ceil(m_target / m);
+            fprintf('\nTargeting m=%d (n held fixed): expanding by k=%d (to %d), then trimming ...\n', ...
+                m_target, k, k*m);
+            K_tmp = kron(speye(k), K);
+            V_tmp = repmat(V, k, 1);
+            if k * m == m_target
+                K_new = K_tmp;
+                V_new = V_tmp;
+                fprintf('  Exact multiple — no trim needed. kappa(L^{-1}V) exactly preserved.\n');
+            else
+                K_new = K_tmp(1:m_target, 1:m_target);
+                V_new = V_tmp(1:m_target, :);
+                keep  = any(V_new, 1);
+                V_new = V_new(:, keep);
+                fprintf('  Trimmed %d rows (%.1f%% of last copy). kappa may differ slightly.\n', ...
+                    k*m - m_target, 100*(k*m - m_target)/m);
+            end
+            n_new = size(V_new, 2);
+            fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+                m, m, nnz(K), m_target, m_target, nnz(K_new));
+            fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
+                m, n, nnz(V), m_target, n_new, nnz(V_new));
+        end
+        tag = sprintf('targetr%d', m_target);
 end
 
 % --- derive output filenames ---
