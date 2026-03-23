@@ -1,4 +1,4 @@
-function [] = plot_scal_results(data_dir, results_file, breakdown_file, plot_mode)
+function [] = plot_basic_results(data_dir, results_file, breakdown_file, plot_mode)
 % PLOT_SCALING_RESULTS Plot CQRRT\_linop vs CholQR vs sCholQR3 scaling study results
 %
 % Usage:

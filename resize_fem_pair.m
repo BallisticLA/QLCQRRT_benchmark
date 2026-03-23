@@ -78,7 +78,7 @@ switch mode
         V_new = V(1:p, :);
         keep  = any(V_new, 1);
         V_new = V_new(:, keep);
-        n_new = sum(keep);
+        n_new = full(sum(keep));
         fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
             m, m, nnz(K), p, p, nnz(K_new));
         fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d] (%d zero cols dropped)\n', ...
@@ -120,7 +120,7 @@ switch mode
             V_new = V(1:m_target, :);
             keep  = any(V_new, 1);
             V_new = V_new(:, keep);
-            n_new = sum(keep);
+            n_new = full(sum(keep));
             fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
                 m, m, nnz(K), m_target, m_target, nnz(K_new));
             fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d] (%d zero cols dropped)\n', ...
@@ -142,7 +142,7 @@ switch mode
                 V_new = V_tmp(1:m_target, :);
                 keep  = any(V_new, 1);
                 V_new = V_new(:, keep);
-                n_new = sum(keep);
+                n_new = full(sum(keep));
                 fprintf('  Trimmed %d rows (%.1f%% of last copy). kappa may differ slightly.\n', ...
                     k*m - m_target, 100*(k*m - m_target)/m);
             end
@@ -163,7 +163,7 @@ switch mode
             V_new = V(1:m_target, :);
             keep  = any(V_new, 1);
             V_new = V_new(:, keep);
-            n_new = sum(keep);
+            n_new = full(sum(keep));
             fprintf('  K: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
                 m, m, nnz(K), m_target, m_target, nnz(K_new));
             fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d] (%d zero cols dropped)\n', ...

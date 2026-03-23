@@ -1,8 +1,8 @@
-%% plot_gsvd_results.m — Plot GSVD / Generalized LS benchmark results
+%% plot_composite_applications_results.m — Plot CQRRT_linop_composite_applications benchmark results
 %
 % Usage:
-%   plot_gsvd_results(data_dir, results_csv, breakdown_csv)
-%   plot_gsvd_results(data_dir, results_csv, breakdown_csv, plot_mode)
+%   plot_composite_applications_results(data_dir, results_csv, breakdown_csv)
+%   plot_composite_applications_results(data_dir, results_csv, breakdown_csv, plot_mode)
 %
 % Arguments:
 %   data_dir      — directory containing the CSV files
@@ -14,7 +14,7 @@
 %   Figure 1 (3x1): Timing bars, orthogonality, memory
 %   Figure 2 (1x3): Runtime breakdown stacked bars per algorithm
 
-function plot_gsvd_results(data_dir, results_csv, breakdown_csv, plot_mode)
+function plot_composite_applications_results(data_dir, results_csv, breakdown_csv, plot_mode)
 
 if nargin < 4
     plot_mode = 'best_speed';
