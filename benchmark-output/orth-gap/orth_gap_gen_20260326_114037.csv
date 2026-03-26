@@ -1,6 +1,0 @@
-# CQRRT orth gap benchmark (generate mode)
-# m=5000, n=1000, kappa=10000, density=0.05, d_factor=2, sketch_nnz=4, block_size=0
-run,linop_orth,expl_orth,gap_ratio,linop_time_us,expl_time_us
-0,1.771859e-12,5.559000e-13,3.187371e+00,707790,95597
-1,1.801819e-12,5.551985e-13,3.245359e+00,655384,83185
-2,1.800451e-12,5.551463e-13,3.243201e+00,668177,91407

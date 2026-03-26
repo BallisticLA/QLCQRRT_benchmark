@@ -1,5 +1,5 @@
 # CQRRT orth gap diagnostic
-# m=4472, n=936, d=1872, sketch_nnz=4
+# precision=double, m=4472, n=936, d=1872, sketch_nnz=4
 step,description,rel_diff
 1,sketch,3.182259e-10
 2,qr_R_sk,3.244338e-11
