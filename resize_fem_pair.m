@@ -5,17 +5,17 @@
 %   resize_fem_pair(K_file, V_file, output_dir, 'shrink', p)
 %       Extract the p×p principal submatrix of K and first p rows of V.
 %       Drops V columns that become entirely zero after the row cut.
-%       Output: <base>_shrink<p>_K.mtx, <base>_shrink<p>_V.mtx
+%       Output: <base>_<m_out>x<n_out>_K.mtx, <base>_<m_out>x<n_out>_V.mtx
 %
 %   resize_fem_pair(K_file, V_file, output_dir, 'expand', k)
 %       K_big = kron(I_k, K),  V_big = kron(I_k, V)  →  k*m × k*n.
 %       kappa(L^{-1}V) exactly preserved.
-%       Output: <base>_expand<k>_K.mtx, <base>_expand<k>_V.mtx
+%       Output: <base>_<m_out>x<n_out>_K.mtx, <base>_<m_out>x<n_out>_V.mtx
 %
 %   resize_fem_pair(K_file, V_file, output_dir, 'target', m_target)
 %       Expand+trim to exactly m_target rows; n scales with k.
 %       kappa exactly preserved if m_target is a multiple of m.
-%       Output: <base>_target<m_target>_K.mtx, <base>_target<m_target>_V.mtx
+%       Output: <base>_<m_out>x<n_out>_K.mtx, <base>_<m_out>x<n_out>_V.mtx
 %
 % Modes that scale only m (n held fixed, kappa exactly preserved):
 %
@@ -23,27 +23,28 @@
 %       K_big = kron(I_k, K),  V_big = repmat(V, k, 1)  →  k*m × n.
 %       L_big^{-1} V_big = [L^{-1}V; ...; L^{-1}V]: singular values scale
 %       by sqrt(k), ratio unchanged.  kappa exactly preserved.
-%       Output: <base>_expandr<k>_K.mtx, <base>_expandr<k>_V.mtx
+%       Output: <base>_<m_out>x<n_out>_K.mtx, <base>_<m_out>x<n_out>_V.mtx
 %
 %   resize_fem_pair(K_file, V_file, output_dir, 'target_rows', m_target)
 %       Expand+trim to exactly m_target rows; n is always held fixed.
 %       kappa exactly preserved if m_target is a multiple of m.
-%       Output: <base>_targetr<m_target>_K.mtx, <base>_targetr<m_target>_V.mtx
+%       Output: <base>_<m_out>x<n_out>_K.mtx, <base>_<m_out>x<n_out>_V.mtx
 %
 %   <base> is derived from K_file by stripping the trailing _K.mtx suffix.
+%   All output filenames encode the actual output dimensions as <m>x<n>.
 %
 % Example:
 %   dir = '/home/mymel/data/QLCQRRT_benchmark/input_matrices';
-%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'shrink',      30000);
-%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'expand',      3);
-%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'expand_rows', 3);
-%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'target',      200000);
-%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_K.mtx'), ...
-%                   fullfile(dir,'FEM_Problem_2_V.mtx'), dir, 'target_rows', 200000);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_75860x4812_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_75860x4812_V.mtx'), dir, 'shrink',      30000);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_75860x4812_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_75860x4812_V.mtx'), dir, 'expand',      3);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_75860x4812_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_75860x4812_V.mtx'), dir, 'expand_rows', 3);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_75860x4812_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_75860x4812_V.mtx'), dir, 'target',      200000);
+%   resize_fem_pair(fullfile(dir,'FEM_Problem_2_75860x4812_K.mtx'), ...
+%                   fullfile(dir,'FEM_Problem_2_75860x4812_V.mtx'), dir, 'target_rows', 200000);
 
 function resize_fem_pair(K_file, V_file, output_dir, mode, param)
 
@@ -83,7 +84,7 @@ switch mode
             m, m, nnz(K), p, p, nnz(K_new));
         fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d] (%d zero cols dropped)\n', ...
             m, n, nnz(V), p, n_new, nnz(V_new), n - n_new);
-        tag = sprintf('shrink%d', p);
+        m_out = p; n_out = n_new;
 
     case 'expand'
         k = param;
@@ -95,7 +96,7 @@ switch mode
         fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
             m, n, nnz(V), k*m, k*n, nnz(V_new));
         fprintf('  Note: kappa(L^{-1}V) is exactly preserved.\n');
-        tag = sprintf('expand%d', k);
+        m_out = k*m; n_out = k*n;
 
     case 'expand_rows'
         k = param;
@@ -107,7 +108,7 @@ switch mode
         fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
             m, n, nnz(V), k*m, n, nnz(V_new));
         fprintf('  Note: kappa(L^{-1}V) is exactly preserved.\n');
-        tag = sprintf('expandr%d', k);
+        m_out = k*m; n_out = n;
 
     case 'target'
         m_target = param;
@@ -151,7 +152,7 @@ switch mode
             fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
                 m, n, nnz(V), m_target, n_new, nnz(V_new));
         end
-        tag = sprintf('target%d', m_target);
+        m_out = m_target; n_out = size(V_new, 2);
 
     case 'target_rows'
         m_target = param;
@@ -192,7 +193,7 @@ switch mode
             fprintf('  V: [%d x %d, nnz=%d] -> [%d x %d, nnz=%d]\n', ...
                 m, n, nnz(V), m_target, n_new, nnz(V_new));
         end
-        tag = sprintf('targetr%d', m_target);
+        m_out = m_target; n_out = size(V_new, 2);
 end
 
 % --- derive output filenames ---
@@ -203,6 +204,7 @@ else
     base = K_name;
 end
 if ~exist(output_dir, 'dir'), mkdir(output_dir); end
+tag = sprintf('%dx%d', m_out, n_out);
 K_out = fullfile(output_dir, sprintf('%s_%s_K.mtx', base, tag));
 V_out = fullfile(output_dir, sprintf('%s_%s_V.mtx', base, tag));
 

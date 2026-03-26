@@ -1,0 +1,6 @@
+# CQRRT orth gap benchmark (file mode)
+# file=/home/mymel/RandNLA/RandNLA-project/build/benchmark-build/photogrammetry2/photogrammetry2.mtx, m=4472, n=936, d_factor=2, sketch_nnz=4, block_size=0
+run,linop_orth,expl_orth,gap_ratio,linop_time_us,expl_time_us
+0,1.721983e-04,1.017165e-09,1.692923e+05,176974,73201
+1,1.515279e-04,1.054974e-09,1.436319e+05,60189,60891
+2,1.649546e-04,1.034402e-09,1.594686e+05,61935,62210
