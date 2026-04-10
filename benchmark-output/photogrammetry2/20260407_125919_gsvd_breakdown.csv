@@ -1,0 +1,33 @@
+# GSVD Benchmark runtime breakdown
+# Date: Tue Apr  7 12:59:19 2026
+# Matrix dimensions: m=4472 n=936
+# Runs per algorithm: 3
+# OpenMP threads: 20
+# K_file: sparse
+# V_file: /home/mymel/matlab/QLCQRRT_benchmark/input_matrices/photogrammetry2/photogrammetry2.mtx
+# d_factor: 2
+# sketch_nnz: 4
+# block_size: 0
+# skip_apps: 0
+# compute_cond: 0
+# Times are in microseconds
+# CQRRT_linop breakdown (11): alloc, sketch, qr, tri_inv, fwd, adj, trmm, chol, finalize, rest, total
+# CholQR breakdown (6): alloc, fwd, adj, chol, rest, total
+# sCholQR3 breakdown (18): alloc, fwd1, adj1, chol1, upd1, fwd2, adj2, gemm2, chol2, upd2, fwd3, adj3, gemm3, chol3, upd3, q_mat, rest, total
+# sCholQR3_basic breakdown (15): alloc, fwd1, adj1, chol1, trsm1, fwd_q, syrk2, chol2, upd2, syrk3, chol3, upd3, q_mat, rest, total
+m,n,run,algorithm,t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17
+4472,936,0,CQRRT_linop,7,1989,15340,10261,31034,5743,5526,1495,5326,74,76795,0,0,0,0,0,0,0
+4472,936,1,CQRRT_linop,1,944,15804,5554,5557,4820,5512,1590,5196,73,45051,0,0,0,0,0,0,0
+4472,936,2,CQRRT_linop,0,1138,15816,4726,5555,4600,3844,1510,3789,80,41058,0,0,0,0,0,0,0
+4472,936,0,CholQR,610,5486,4653,1416,66,12231,0,0,0,0,0,0,0,0,0,0,0,0
+4472,936,1,CholQR,528,5230,4948,1530,70,12306,0,0,0,0,0,0,0,0,0,0,0,0
+4472,936,2,CholQR,664,5930,5748,1544,86,13972,0,0,0,0,0,0,0,0,0,0,0,0
+4472,936,0,sCholQR3,1775,5404,4671,4508,4643,5399,5010,9786,5627,12949,9089,6145,9919,4355,5714,0,18,95012
+4472,936,1,sCholQR3,1569,10586,4933,3971,3895,5490,5540,8889,3952,8192,5466,4479,9931,5392,5085,0,29,87399
+4472,936,2,sCholQR3,1801,12110,5236,4297,3974,5365,5451,7005,4097,9943,5715,4478,6936,4095,5551,0,28,86082
+4472,936,0,sCholQR3_basic,7261,6166,4874,4353,5600,5787,24656,5792,28054,22103,5133,5751,0,26,125556,0,0,0
+4472,936,1,sCholQR3_basic,7263,5563,4777,4210,5400,5882,23343,4959,23320,21963,4197,5676,0,22,116575,0,0,0
+4472,936,2,sCholQR3_basic,7210,5345,5050,4150,5284,5776,18056,4169,21692,19093,3947,5814,0,26,105612,0,0,0
+4472,936,0,CQRRT_expl,5086,17189,0,17585,19255,0,1534,5704,5809,72162,0,0,0,0,0,0,0,0
+4472,936,1,CQRRT_expl,4726,16410,0,17917,18591,0,1436,4191,1691,64962,0,0,0,0,0,0,0,0
+4472,936,2,CQRRT_expl,5374,16009,0,19962,23327,0,1534,4404,1211,71821,0,0,0,0,0,0,0,0

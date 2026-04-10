@@ -1,0 +1,12 @@
+# CQRRT orth gap diagnostic
+# precision=double, m=4472, n=936, d=1872, sketch_nnz=4
+step,description,rel_diff
+1,sketch,5.238104e-19
+2,qr_R_sk,3.244338e-11
+3,A_pre,1.205331e-04
+4,gram,1.252192e-04
+5,cholesky,1.205331e-04
+6,final_R,2.369570e-10
+7,orth_linop,1.721983e-04
+7,orth_expl,1.018539e-09
+7,orth_gap,1.690641e+05

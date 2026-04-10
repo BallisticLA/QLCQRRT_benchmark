@@ -1,220 +1,173 @@
-%% plot_orth_gap.m — CQRRT linop vs explicit orthogonality gap visualization
+%% plot_orth_gap.m — CQRRT linop vs explicit orthogonality gap
 %
-% Reads CSV files from benchmark-output/orth-gap/ and produces two figures:
-%   Figure 1: Orthogonality error comparison (linop vs expl) across matrices
-%   Figure 2: Step-by-step diagnostic — relative difference at each algorithm step
+% Reads diagnostic_*.csv files produced by CQRRT_diagnostic (both file mode
+% and generate mode) and produces a bar chart comparing:
+%   CQRRT_expl  — backward-stable TRSM path (orth_Q1)
+%   CQRRT_linop — linop default: TRSM-with-identity (orth_Q2)
 %
-% Usage: run from /home/mymel/data/QLCQRRT_benchmark/
+% Usage:
+%   plot_orth_gap(data_dir)              — standalone, reads from data_dir
+%   plot_orth_gap(data_dir, parent_fig)  — embed in existing figure/tab
+%
+% data_dir should contain diagnostic_*.csv files, one per matrix.
+% Files with kappa_target in header are treated as synthetic (sorted by kappa);
+% files without are treated as real matrices (sorted last, by filename).
 
-clear; close all;
-data_dir = fullfile(pwd, 'benchmark-output', 'orth-gap');
+function plot_orth_gap(data_dir, parent_fig)
 
-% Colorblind-friendly palette (Wong 2011, Nature Methods)
-color_linop = [0.90 0.60 0.00];  % orange
-color_expl  = [0.00 0.45 0.70];  % blue
-color_diag  = [0.00 0.62 0.45];  % teal
-
-default_fontsize = 14;
-
-%% ===== Figure 1: Orthogonality gap across matrices =====
-% Collect all orth_gap_*.csv files (excluding diag files)
-files = dir(fullfile(data_dir, 'orth_gap_*.csv'));
-files = files(~contains({files.name}, 'diag'));
-
-matrix_labels = {};
-linop_orth    = [];
-expl_orth     = [];
-gap_ratios    = [];
-precision_str = 'double';  % default; updated from CSV if available
-
-for i = 1:numel(files)
-    fpath = fullfile(data_dir, files(i).name);
-
-    % Read header comments to extract matrix info
-    fid = fopen(fpath, 'r');
-    header1 = fgetl(fid);  % # comment line 1
-    header2 = fgetl(fid);  % # comment line 2 with parameters
-    fclose(fid);
-
-    % Extract precision
-    prec_match = regexp(header2, 'precision=(\w+)', 'tokens');
-    if ~isempty(prec_match)
-        precision_str = prec_match{1}{1};
-    end
-
-    % Extract display name (matrix name on line 1, kappa on line 2)
-    fname = files(i).name;
-    if contains(fname, '_gen_')
-        % Synthetic: extract kappa and dimensions from header
-        kappa_match = regexp(header2, 'kappa=([0-9.e+]+)', 'tokens');
-        m_match = regexp(header2, 'm=(\d+)', 'tokens');
-        n_match = regexp(header2, 'n=(\d+)', 'tokens');
-        name_line = 'synthetic';
-        if ~isempty(m_match) && ~isempty(n_match)
-            name_line = sprintf('synthetic %sx%s', m_match{1}{1}, n_match{1}{1});
-        end
-        kappa_line = '';
-        if ~isempty(kappa_match)
-            kappa_line = sprintf('\\kappa = %.0e', str2double(kappa_match{1}{1}));
-        end
-        matrix_labels{end+1} = sprintf('%s\n%s', name_line, kappa_line);
-    else
-        % File mode: extract matrix name and dimensions
-        parts = regexp(fname, 'orth_gap_(.+?)_\d{8}', 'tokens');
-        m_match = regexp(header2, 'm=(\d+)', 'tokens');
-        n_match = regexp(header2, 'n=(\d+)', 'tokens');
-        if ~isempty(parts)
-            name_str = parts{1}{1};
-        else
-            name_str = fname;
-        end
-        dim_str = '';
-        if ~isempty(m_match) && ~isempty(n_match)
-            dim_str = sprintf('%sx%s', m_match{1}{1}, n_match{1}{1});
-        end
-        matrix_labels{end+1} = sprintf('%s %s', name_str, dim_str);
-    end
-
-    % Read data
-    T = readtable(fpath, 'CommentStyle', '#');
-    % Average over runs
-    linop_orth(end+1)  = mean(T.linop_orth);
-    expl_orth(end+1)   = mean(T.expl_orth);
-    gap_ratios(end+1)  = mean(T.gap_ratio);
+if nargin < 1 || isempty(data_dir)
+    data_dir = fullfile(fileparts(mfilename('fullpath')), ...
+                        'benchmark-output', 'orth-gap');
 end
+if nargin < 2, parent_fig = []; end
 
-% Sort by gap ratio for better visualization
-[~, idx] = sort(gap_ratios);
-matrix_labels = matrix_labels(idx);
-linop_orth    = linop_orth(idx);
-expl_orth     = expl_orth(idx);
-gap_ratios    = gap_ratios(idx);
+% Colorblind-friendly palette (Wong 2011)
+color_expl  = [  0 114 178] / 255;   % blue  — [1] expl_trsm
+color_linop = [213  94   0] / 255;   % vermilion — [2] expl_inv_trsm (linop default)
+default_fontsize = 13;
 
-n_matrices = numel(matrix_labels);
-
-% Machine epsilon depends on precision
-if strcmp(precision_str, 'float')
-    eps_val = single(eps('single'));
-else
-    eps_val = eps('double');
-end
-
-figure('Position', [100 100 1000 550]);
-
-x = 1:n_matrices;
-hold on;
-b1 = bar(x - 0.17, log10(linop_orth), 0.3, 'FaceColor', color_linop, 'EdgeColor', 'none');
-b2 = bar(x + 0.17, log10(expl_orth),  0.3, 'FaceColor', color_expl,  'EdgeColor', 'none');
-yline(log10(eps_val), '--', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5, ...
-    'Label', sprintf('\\epsilon_{mach} (%s)', precision_str), ...
-    'LabelHorizontalAlignment', 'left', 'FontSize', default_fontsize - 2);
-hold off;
-
-set(gca, 'XTick', x, 'XTickLabel', matrix_labels, 'FontSize', default_fontsize);
-ylabel('log_{10}( ||Q^TQ - I||_F )', 'FontSize', default_fontsize);
-title('CQRRT: LinOp vs Explicit Orthogonality Error', 'FontSize', default_fontsize + 2);
-legend([b1 b2], {'CQRRT\_linop', 'CQRRT\_expl'}, ...
-    'Location', 'northwest', 'FontSize', default_fontsize);
-grid on;
-set(gca, 'TickLabelInterpreter', 'tex');
-
-%% ===== Figure 2: Step-by-step diagnostic =====
-diag_files = dir(fullfile(data_dir, 'orth_gap_diag_*.csv'));
-if isempty(diag_files)
-    fprintf('No diagnostic CSV files found in %s\n', data_dir);
+%% -----------------------------------------------------------------------
+%  Collect all diagnostic_*.csv files
+%  -----------------------------------------------------------------------
+files = dir(fullfile(data_dir, 'diagnostic_*.csv'));
+if isempty(files)
+    warning('plot_orth_gap: no diagnostic_*.csv found in %s', data_dir);
     return;
 end
 
-% Read the most recent diagnostic file
-diag_path = fullfile(data_dir, diag_files(end).name);
-fid = fopen(diag_path, 'r');
-header1 = fgetl(fid);  % # comment
-header2 = fgetl(fid);  % # parameters
-fclose(fid);
+n_files = numel(files);
+labels       = cell(n_files, 1);
+kappa_vals   = zeros(n_files, 1);   % NaN for real matrices
+expl_orth    = zeros(n_files, 1);
+linop_orth   = zeros(n_files, 1);
 
-% Extract precision from diagnostic
-prec_match = regexp(header2, 'precision=(\w+)', 'tokens');
-if ~isempty(prec_match)
-    precision_str = prec_match{1}{1};
-end
-if strcmp(precision_str, 'float')
-    eps_val = single(eps('single'));
-else
-    eps_val = eps('double');
-end
+for i = 1:n_files
+    fpath = fullfile(data_dir, files(i).name);
 
-% Extract m, n for title
-m_match = regexp(header2, 'm=(\d+)', 'tokens');
-n_match = regexp(header2, 'n=(\d+)', 'tokens');
-dim_str = '';
-if ~isempty(m_match) && ~isempty(n_match)
-    dim_str = sprintf('%s x %s', m_match{1}{1}, n_match{1}{1});
-end
+    % ---- Parse header comments ----
+    fid = fopen(fpath, 'r');
+    kappa_target = NaN;
+    cond_A = NaN;
+    meta_m = 0; meta_n = 0;
+    while true
+        line = fgetl(fid);
+        if ~ischar(line) || isempty(line) || line(1) ~= '#', break; end
+        tok = regexp(line, 'kappa_target=([\d.e+\-]+)', 'tokens');
+        if ~isempty(tok), kappa_target = str2double(tok{1}{1}); end
+        tok = regexp(line, 'cond_A=([\d.e+\-]+)', 'tokens');
+        if ~isempty(tok), cond_A = str2double(tok{1}{1}); end
+        tok = regexp(line, 'm=(\d+)', 'tokens');
+        if ~isempty(tok), meta_m = str2double(tok{1}{1}); end
+        tok = regexp(line, 'n=(\d+)', 'tokens');
+        if ~isempty(tok), meta_n = str2double(tok{1}{1}); end
+    end
+    fclose(fid);
 
-T = readtable(diag_path, 'CommentStyle', '#');
+    % ---- Read CSV (skip comment lines) ----
+    n_comments = count_comment_lines(fpath);
+    opts = detectImportOptions(fpath, 'NumHeaderLines', n_comments);
+    T_data = readtable(fpath, opts);
 
-% Filter to steps 1-7 (exclude orth_linop, orth_expl, orth_gap rows)
-mask = T.step < 8;
-descriptions = T.description(mask);
-rel_diffs = T.rel_diff(mask);
+    % Use worst (maximum) across runs — conservative, consistent with diagnostic figures
+    expl_orth(i)  = max(T_data.orth_Q1);   % path [1] expl_trsm
+    linop_orth(i) = max(T_data.orth_Q2);   % path [2] expl_inv_trsm (linop default)
 
-% Map CSV description keys to paper-consistent labels
-label_map = containers.Map();
-label_map('sketch')      = {'Sketch', 'M^{sk} = SM'};
-label_map('qr_R_sk')     = {'QR', 'R^{sk}'};
-label_map('R_pre')        = {'Preconditioner', 'R^{pre} = (R^{sk})^{-1}'};
-label_map('A_pre')        = {'Preconditioning', 'MR^{pre}'};
-label_map('AtApre_gemm')  = {'A^T \cdot A_{pre}', 'M^T(MR^{pre})'};
-label_map('gram')         = {'Gram', '(R^{pre})^T M^T M R^{pre}'};
-label_map('cholesky')     = {'Cholesky', 'R^{chol}'};
-label_map('final_R')      = {'Final R', 'R^{chol} R^{sk}'};
+    kappa_vals(i) = kappa_target;
 
-step_labels = cell(numel(descriptions), 1);
-for i = 1:numel(descriptions)
-    key = descriptions{i};
-    if isKey(label_map, key)
-        pair = label_map(key);
-        step_labels{i} = sprintf('%s\n%s', pair{1}, pair{2});
+    if ~isnan(kappa_target)
+        exp_k = round(log10(kappa_target));
+        labels{i} = sprintf('synthetic%s\\kappa = 10^{%d}', char(10), exp_k);
     else
-        step_labels{i} = strrep(key, '_', ' ');
+        % Use matrix name from the Matrix: header comment
+        fid2 = fopen(fpath, 'r');
+        mat_name = '';
+        while true
+            ln = fgetl(fid2);
+            if ~ischar(ln) || isempty(ln) || ln(1) ~= '#', break; end
+            tok = regexp(ln, '# Matrix:\s*(.+)', 'tokens');
+            if ~isempty(tok)
+                mat_name = strtrim(tok{1}{1});
+                [~, mat_name] = fileparts(mat_name);   % basename only
+                break;
+            end
+        end
+        fclose(fid2);
+        if isempty(mat_name)
+            mat_name = strrep(files(i).name, '.csv', '');
+        end
+        mat_label = strrep(mat_name, '_', '\_');
+        if ~isnan(cond_A)
+            exp_c    = floor(log10(cond_A));
+            mantissa = cond_A / 10^exp_c;
+            labels{i} = sprintf('%s%s\\kappa \\approx %.2f\\times10^{%d}', ...
+                mat_label, char(10), mantissa, exp_c);
+        else
+            labels{i} = mat_label;
+        end
     end
 end
 
-figure('Position', [100 700 1000 500]);
-bar_data = log10(rel_diffs);
-b = bar(bar_data, 'FaceColor', color_diag, 'EdgeColor', 'none', 'BarWidth', 0.6);
+%% -----------------------------------------------------------------------
+%  Sort: synthetic by ascending kappa, then real matrices alphabetically
+%  -----------------------------------------------------------------------
+is_synthetic = ~isnan(kappa_vals);
+synth_idx = find(is_synthetic);
+real_idx  = find(~is_synthetic);
 
-set(gca, 'XTick', 1:numel(step_labels), 'XTickLabel', step_labels, ...
-    'FontSize', default_fontsize, 'TickLabelInterpreter', 'tex');
-ylabel('log_{10}( relative difference )', 'FontSize', default_fontsize);
+% Sort synthetic by kappa
+[~, ks] = sort(kappa_vals(synth_idx));
+synth_idx = synth_idx(ks);
 
-% Build title with matrix name
-% Try to infer matrix name from the file that produced the diagnostic
-% (diag mode is always run on a specific file; name embedded in header or nearby comparison CSVs)
-title_str = sprintf('CQRRT\\_linop vs CQRRT\\_expl: step-by-step divergence (%s, %s)', ...
-    dim_str, precision_str);
-% Check if photogrammetry2 comparison file exists to get matrix name
-comp_files = dir(fullfile(data_dir, 'orth_gap_photogrammetry2_*.csv'));
-if ~isempty(comp_files)
-    title_str = sprintf('CQRRT\\_linop vs CQRRT\\_expl: step-by-step divergence\nphotogrammetry2 (%s, %s)', ...
-        dim_str, precision_str);
+% Sort real by label
+real_labels = labels(real_idx);
+[~, kr] = sort(real_labels);
+real_idx = real_idx(kr);
+
+idx = [synth_idx; real_idx];
+labels     = labels(idx);
+expl_orth  = expl_orth(idx);
+linop_orth = linop_orth(idx);
+n_mats     = numel(idx);
+
+%% -----------------------------------------------------------------------
+%  Plot
+%  -----------------------------------------------------------------------
+if isempty(parent_fig)
+    figure('Position', [100 100 max(700, n_mats*130) 580]);
+    parent_fig = gcf;
 end
-title(title_str, 'FontSize', default_fontsize + 2);
-grid on;
+% 'loose' padding leaves space below the axes for multi-line tick labels
+tl = tiledlayout(parent_fig, 1, 1, 'TileSpacing', 'compact', 'Padding', 'loose');
+ax = nexttile(tl);
+hold(ax, 'on');
 
-% Add value labels above bars
-for i = 1:numel(rel_diffs)
-    y_pos = bar_data(i);
-    text(i, y_pos + 0.4, sprintf('%.1e', rel_diffs(i)), ...
-        'HorizontalAlignment', 'center', 'FontSize', default_fontsize - 2);
+x = 1:n_mats;
+bar(ax, x - 0.18, expl_orth,  0.32, 'FaceColor', color_expl,  'EdgeColor', 'none', ...
+    'DisplayName', 'CQRRT\_expl');
+bar(ax, x + 0.18, linop_orth, 0.32, 'FaceColor', color_linop, 'EdgeColor', 'none', ...
+    'DisplayName', 'CQRRT\_linop');
+
+eps_val = eps('double');
+yline(ax, eps_val, '--', '\epsilon_{mach}', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.2, ...
+      'LabelHorizontalAlignment', 'right', 'FontSize', default_fontsize - 2, ...
+      'HandleVisibility', 'off');
+
+set(ax, 'YScale', 'log', 'YLim', [eps_val/10, 2], ...
+    'XTick', x, 'XTickLabel', {}, 'FontSize', default_fontsize);
+ax.Clipping = 'off';
+% Multi-line tick labels via text(); Clipping='off' lets them render below the axis
+yl = get(ax, 'YLim');
+for k = 1:n_mats
+    text(ax, x(k), yl(1), labels{k}, ...
+        'HorizontalAlignment', 'center', 'VerticalAlignment', 'top', ...
+        'FontSize', default_fontsize - 1, 'Interpreter', 'tex', 'Clipping', 'off');
 end
 
-% Machine epsilon reference line
-hold on;
-yline(log10(eps_val), '--', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5, ...
-    'Label', sprintf('\\epsilon_{mach} (%s)', precision_str), ...
-    'LabelHorizontalAlignment', 'left', 'FontSize', default_fontsize - 2);
-hold off;
+ylabel(ax, '$\|Q^\top Q - I\|_F / \sqrt{n}$', 'Interpreter', 'latex', 'FontSize', default_fontsize + 1);
+title(ax, 'CQRRT: Explicit vs LinOp Orthogonality Error', ...
+      'FontSize', default_fontsize + 1, 'Interpreter', 'none');
+legend(ax, 'Location', 'northwest', 'FontSize', default_fontsize - 1);
+grid(ax, 'on');
 
-fprintf('Done. Processed %d comparison files and %d diagnostic files.\n', ...
-    numel(files), numel(diag_files));
+end  % function
+
