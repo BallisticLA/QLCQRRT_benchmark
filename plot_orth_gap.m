@@ -1,9 +1,13 @@
-%% plot_orth_gap.m — CQRRT linop vs explicit orthogonality gap
+%% plot_orth_gap.m — CQRRT explicit inversion method comparison
 %
 % Reads diagnostic_*.csv files produced by CQRRT_diagnostic (both file mode
-% and generate mode) and produces a bar chart comparing:
-%   CQRRT_expl  — backward-stable TRSM path (orth_Q1)
-%   CQRRT_linop — linop default: TRSM-with-identity (orth_Q2)
+% and generate mode) and produces a bar chart comparing up to 6 paths:
+%   [1] expl_trsm     — backward-stable TRSM path (orth_Q1)
+%   [2] expl_inv_trsm — TRSM-with-identity (orth_Q2, CQRRT_linop default)
+%   [3] expl_inv_trtri— TRTRI (orth_Q3)
+%   [4] expl_inv_geqp3— GEQP3 re-factoring (orth_Q4)
+%   [5] expl_inv_svd  — SVD (orth_Q5, optional — present only in newer CSVs)
+%   [6] expl_inv_getri— GETRF+GETRI (orth_Q6, optional — present only in newer CSVs)
 %
 % Usage:
 %   plot_orth_gap(data_dir)              — standalone, reads from data_dir
@@ -22,8 +26,12 @@ end
 if nargin < 2, parent_fig = []; end
 
 % Colorblind-friendly palette (Wong 2011)
-color_expl  = [  0 114 178] / 255;   % blue  — [1] expl_trsm
-color_linop = [213  94   0] / 255;   % vermilion — [2] expl_inv_trsm (linop default)
+color_expl   = [  0 114 178] / 255;   % blue         — [1] expl_trsm
+color_linop  = [213  94   0] / 255;   % vermilion    — [2] expl_inv_trsm (linop default)
+color_trtri  = [  0 158 115] / 255;   % green        — [3] expl_inv_trtri
+color_geqp3  = [230 159   0] / 255;   % yellow-orange— [4] expl_inv_geqp3
+color_svd    = [ 86 180 233] / 255;   % sky blue     — [5] expl_inv_svd
+color_getri  = [204 121 167] / 255;   % reddish-purple—[6] expl_inv_getri
 default_fontsize = 13;
 
 %% -----------------------------------------------------------------------
@@ -40,6 +48,10 @@ labels       = cell(n_files, 1);
 kappa_vals   = zeros(n_files, 1);   % NaN for real matrices
 expl_orth    = zeros(n_files, 1);
 linop_orth   = zeros(n_files, 1);
+trtri_orth   = zeros(n_files, 1);
+geqp3_orth   = zeros(n_files, 1);
+svd_orth     = NaN(n_files, 1);     % NaN when absent (older CSVs)
+getri_orth   = NaN(n_files, 1);
 
 for i = 1:n_files
     fpath = fullfile(data_dir, files(i).name);
@@ -71,6 +83,12 @@ for i = 1:n_files
     % Use worst (maximum) across runs — conservative, consistent with diagnostic figures
     expl_orth(i)  = max(T_data.orth_Q1);   % path [1] expl_trsm
     linop_orth(i) = max(T_data.orth_Q2);   % path [2] expl_inv_trsm (linop default)
+    trtri_orth(i) = max(T_data.orth_Q3);   % path [3] expl_inv_trtri
+    geqp3_orth(i) = max(T_data.orth_Q4);   % path [4] expl_inv_geqp3
+    if ismember('orth_Q5', T_data.Properties.VariableNames)
+        svd_orth(i)   = max(T_data.orth_Q5);   % path [5] expl_inv_svd
+        getri_orth(i) = max(T_data.orth_Q6);   % path [6] expl_inv_getri
+    end
 
     kappa_vals(i) = kappa_target;
 
@@ -127,7 +145,14 @@ idx = [synth_idx; real_idx];
 labels     = labels(idx);
 expl_orth  = expl_orth(idx);
 linop_orth = linop_orth(idx);
+trtri_orth = trtri_orth(idx);
+geqp3_orth = geqp3_orth(idx);
+svd_orth   = svd_orth(idx);
+getri_orth = getri_orth(idx);
 n_mats     = numel(idx);
+
+% Determine whether new paths (5, 6) are present in any file
+has_svd = any(~isnan(svd_orth));
 
 %% -----------------------------------------------------------------------
 %  Plot
@@ -142,10 +167,21 @@ ax = nexttile(tl);
 hold(ax, 'on');
 
 x = 1:n_mats;
-bar(ax, x - 0.18, expl_orth,  0.32, 'FaceColor', color_expl,  'EdgeColor', 'none', ...
-    'DisplayName', 'CQRRT\_expl');
-bar(ax, x + 0.18, linop_orth, 0.32, 'FaceColor', color_linop, 'EdgeColor', 'none', ...
-    'DisplayName', 'CQRRT\_linop');
+if has_svd
+    % 6-bar layout: width=0.13, gap=0.015, total span ~0.87
+    offsets = [-0.3375, -0.2025, -0.0675, 0.0675, 0.2025, 0.3375];
+    bw = 0.13;
+    bar(ax, x + offsets(1), expl_orth,  bw, 'FaceColor', color_expl,  'EdgeColor', 'none', 'DisplayName', 'expl\_trsm [1]');
+    bar(ax, x + offsets(2), linop_orth, bw, 'FaceColor', color_linop, 'EdgeColor', 'none', 'DisplayName', 'inv\_trsm [2]');
+    bar(ax, x + offsets(3), trtri_orth, bw, 'FaceColor', color_trtri, 'EdgeColor', 'none', 'DisplayName', 'inv\_trtri [3]');
+    bar(ax, x + offsets(4), geqp3_orth, bw, 'FaceColor', color_geqp3, 'EdgeColor', 'none', 'DisplayName', 'inv\_geqp3 [4]');
+    bar(ax, x + offsets(5), svd_orth,   bw, 'FaceColor', color_svd,   'EdgeColor', 'none', 'DisplayName', 'inv\_svd [5]');
+    bar(ax, x + offsets(6), getri_orth, bw, 'FaceColor', color_getri, 'EdgeColor', 'none', 'DisplayName', 'inv\_getri [6]');
+else
+    % 2-bar layout (legacy CSVs without paths 5-6)
+    bar(ax, x - 0.18, expl_orth,  0.32, 'FaceColor', color_expl,  'EdgeColor', 'none', 'DisplayName', 'CQRRT\_expl');
+    bar(ax, x + 0.18, linop_orth, 0.32, 'FaceColor', color_linop, 'EdgeColor', 'none', 'DisplayName', 'CQRRT\_linop');
+end
 
 eps_val = eps('double');
 yline(ax, eps_val, '--', '\epsilon_{mach}', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.2, ...
@@ -164,7 +200,7 @@ for k = 1:n_mats
 end
 
 ylabel(ax, '$\|Q^\top Q - I\|_F / \sqrt{n}$', 'Interpreter', 'latex', 'FontSize', default_fontsize + 1);
-title(ax, 'CQRRT: Explicit vs LinOp Orthogonality Error', ...
+title(ax, 'CQRRT: Inversion Method Orthogonality Error Comparison', ...
       'FontSize', default_fontsize + 1, 'Interpreter', 'none');
 legend(ax, 'Location', 'northwest', 'FontSize', default_fontsize - 1);
 grid(ax, 'on');

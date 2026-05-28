@@ -70,15 +70,6 @@ analytical = T.analytical_kb;
 m_val      = T.m(1);
 n_val      = T.n(1);
 
-has_r_bwd  = ismember('r_backward_error', T.Properties.VariableNames);
-r_bwd_error = zeros(height(T), 1);
-orth_upcast = zeros(height(T), 1);
-if has_r_bwd, r_bwd_error = T.r_backward_error; end
-if ismember('orth_error_upcast', T.Properties.VariableNames)
-    orth_upcast = T.orth_error_upcast;
-end
-% Only show upcast column if it was actually computed (any nonzero value)
-has_upcast = any(orth_upcast > 0);
 
 % =========================================================================
 %  Sort algorithms by display order; build display labels
@@ -137,7 +128,7 @@ if isempty(main_tab)
 else
     parent_main = main_tab;
 end
-n_main_rows = 3 + has_r_bwd;
+n_main_rows = 3;
 tl_main = tiledlayout(parent_main, n_main_rows, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 % ---- Subplot 1: Timing ----
@@ -175,37 +166,7 @@ ylabel(ax_orth, '$\|Q^TQ - I\|_F / \sqrt{n}$', 'Interpreter', 'latex', 'FontSize
 title(ax_orth, sprintf('Orthogonality (%s)', mode_str), 'FontSize', 14, 'FontWeight', 'bold');
 grid(ax_orth, 'on');
 
-% ---- Subplot 3: Error panel (orth + R backward + upcast) ----
-if has_r_bwd
-    ax_err = nexttile(tl_main);
-    err_data = zeros(n_algs, 2 + has_upcast);
-    for a = 1:n_algs
-        i = sel_idx(a);
-        err_data(a, 1) = max(orth_error(i),  eps);
-        err_data(a, 2) = max(r_bwd_error(i), eps);
-        if has_upcast
-            err_data(a, 3) = max(orth_upcast(i), eps);
-        end
-    end
-    be = bar(ax_err, err_data);
-    y3_floor = 1e-16; if min(err_data(:)) < 1e-16, y3_floor = min(err_data(:)) / 10; end
-    set(ax_err, 'YScale', 'log', 'YLim', [y3_floor, 1], 'YTick', [1e-15, 1e-10, 1e-5, 1], ...
-        'XTick', 1:n_algs, 'XTickLabel', disp_labels, 'TickLabelInterpreter', 'tex', 'FontSize', 11);
-    ylabel(ax_err, 'Error', 'FontSize', 12);
-    title(ax_err, 'R-factor Backward Error and Upcast Orthogonality', ...
-          'FontSize', 14, 'FontWeight', 'bold');
-    be(1).FaceColor = w_orange;
-    be(2).FaceColor = w_skyblue;
-    legend_entries = {'$\|Q^TQ-I\|_F/\sqrt{n}$', '$\|A^TA-R^TR\|_F/\|A\|_F^2$'};
-    if has_upcast
-        be(3).FaceColor = w_purple;
-        legend_entries{end+1} = 'Upcast orth';
-    end
-    legend(ax_err, legend_entries, 'Interpreter', 'latex', 'Location', 'northeastoutside', 'FontSize', 9);
-    grid(ax_err, 'on');
-end
-
-% ---- Subplot 4: Memory ----
+% ---- Subplot 3: Memory ----
 nexttile(tl_main);
 mem_data = zeros(n_algs, 2);
 for a = 1:n_algs
@@ -378,16 +339,37 @@ for k = 1:n_bd_algs
 end
 bd_ylim = [0, max_total_ms * 1.08];
 
+% Split into row 1 (CQRRT algs) and row 2 (all others)
+cqrrt_set = {'CQRRT_linop', 'CQRRT_expl', 'CQRRT_linop_stb', 'CQRRT_linop_stb_bqrrp'};
+bd_row1 = {};
+bd_row2 = {};
+for k = 1:numel(bd_alg_list)
+    if any(strcmp(cqrrt_set, bd_alg_list{k}))
+        bd_row1{end+1} = bd_alg_list{k};
+    else
+        bd_row2{end+1} = bd_alg_list{k};
+    end
+end
+n_row1 = numel(bd_row1);
+n_row2 = numel(bd_row2);
+n_cols = max(n_row1, n_row2);
+
 if isempty(bd_tab)
-    figure('Position', [150, 150, 420 * n_bd_algs, 450]);
-    parent_bd = gcf;
+    fig_bd    = figure('Position', [150, 150, 350 * n_cols, 800]);
+    parent_bd = fig_bd;
 else
+    fig_bd    = [];
     parent_bd = bd_tab;
 end
-tl_bd = tiledlayout(parent_bd, 1, n_bd_algs, 'TileSpacing', 'compact', 'Padding', 'compact');
 
-for k = 1:n_bd_algs
-    alg  = bd_alg_list{k};
+% Single grid so every tile is the same size.
+% Shorter top row is centered by offsetting into blank leading tiles.
+tl_bd       = tiledlayout(parent_bd, 2, n_cols, 'TileSpacing', 'compact', 'Padding', 'compact');
+row1_offset = floor((n_cols - n_row1) / 2);
+
+% --- Row 1: CQRRT algorithms ---
+for k = 1:n_row1
+    alg  = bd_row1{k};
     def  = bd_defs.(alg);
     grps = def.groups;
 
@@ -400,22 +382,22 @@ for k = 1:n_bd_algs
     row = bi(match);
     times_us = bd_times(row, :);
 
-    n_grps       = numel(grps);
-    grp_vals     = zeros(1, n_grps);
-    grp_labels   = cell(1, n_grps);
-    grp_colors   = cell(1, n_grps);
+    n_grps     = numel(grps);
+    grp_vals   = zeros(1, n_grps);
+    grp_labels = cell(1, n_grps);
+    grp_colors = cell(1, n_grps);
     for g = 1:n_grps
         grp_labels{g} = grps{g}{1};
         grp_colors{g} = grps{g}{3};
         grp_vals(g)   = sum(times_us(grps{g}{2})) / 1000;
     end
 
-    nonzero    = grp_vals > 0;
-    vals_nz    = grp_vals(nonzero);
-    labels_nz  = grp_labels(nonzero);
-    colors_nz  = grp_colors(nonzero);
+    nonzero   = grp_vals > 0;
+    vals_nz   = grp_vals(nonzero);
+    labels_nz = grp_labels(nonzero);
+    colors_nz = grp_colors(nonzero);
 
-    nexttile(tl_bd);
+    nexttile(tl_bd, row1_offset + k);
     bplot = bar(1, fliplr(vals_nz), 'stacked');
     for i = 1:numel(bplot)
         bplot(i).FaceColor = colors_nz{numel(bplot) + 1 - i};
@@ -423,7 +405,55 @@ for k = 1:n_bd_algs
     end
     ylim(bd_ylim);
     if k == 1, ylabel('Time (ms)', 'FontSize', 10); end
-    title(def.disp, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
+    xlabel(def.disp, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
+    lgd = legend(flip(bplot), labels_nz);
+    lgd.FontSize = 7;
+    lgd.Location = 'northeastoutside';
+    lgd.Interpreter = 'none';
+    set(gca, 'XTick', []);
+    grid on;
+    set(gca, 'FontSize', 10);
+end
+
+% --- Row 2: non-CQRRT algorithms ---
+for k = 1:n_row2
+    alg  = bd_row2{k};
+    def  = bd_defs.(alg);
+    grps = def.groups;
+
+    a  = find(strcmp(unique_algs, alg), 1);
+    bi = find(strcmp(bd_algs, alg));
+    sel_run = T.run(sel_idx(a));
+    bd_runs = T_bd.run(bi);
+    match = find(bd_runs == sel_run, 1);
+    if isempty(match), match = 1; end
+    row = bi(match);
+    times_us = bd_times(row, :);
+
+    n_grps     = numel(grps);
+    grp_vals   = zeros(1, n_grps);
+    grp_labels = cell(1, n_grps);
+    grp_colors = cell(1, n_grps);
+    for g = 1:n_grps
+        grp_labels{g} = grps{g}{1};
+        grp_colors{g} = grps{g}{3};
+        grp_vals(g)   = sum(times_us(grps{g}{2})) / 1000;
+    end
+
+    nonzero   = grp_vals > 0;
+    vals_nz   = grp_vals(nonzero);
+    labels_nz = grp_labels(nonzero);
+    colors_nz = grp_colors(nonzero);
+
+    nexttile(tl_bd, n_cols + k);
+    bplot = bar(1, fliplr(vals_nz), 'stacked');
+    for i = 1:numel(bplot)
+        bplot(i).FaceColor = colors_nz{numel(bplot) + 1 - i};
+        bplot(i).FaceAlpha = 0.9;
+    end
+    ylim(bd_ylim);
+    if k == 1, ylabel('Time (ms)', 'FontSize', 10); end
+    xlabel(def.disp, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
     lgd = legend(flip(bplot), labels_nz);
     lgd.FontSize = 7;
     lgd.Location = 'northeastoutside';
@@ -438,7 +468,9 @@ if isempty(title_suffix)
 else
     bd_title = sprintf('QR Runtime Breakdown (%d x %d, %s) - %s', m_val, n_val, mode_str, title_suffix);
 end
-if ~isempty(bd_tab), bd_tab.Title = bd_title; end
+if ~isempty(bd_tab)
+    bd_tab.Title = bd_title;
+end
 sgtitle(tl_bd, bd_title, 'FontSize', 13, 'FontWeight', 'bold');
 
 fprintf('Plots generated for %s\n', results_path);
