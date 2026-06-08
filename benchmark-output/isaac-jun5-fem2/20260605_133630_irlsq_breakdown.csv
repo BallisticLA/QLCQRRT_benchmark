@@ -1,0 +1,16 @@
+# Sparse IR-LSQ Benchmark runtime breakdown (microseconds)
+# QR breakdown layout depends on algorithm (see CQRRT_linop_applications.cc).
+# IR-LSQ breakdown (6): outer_total, inner_cg_total, trsm_total, fwd_total, adj_total, other
+#   (sketch-and-solve x_0 time is folded into the difference between ir_total_us
+#    in the results CSV and outer_total here)
+algorithm,run,phase,t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10
+CQRRT_linop,0,QR,761878,16839369,4562702,1493260,16449888,15812480,1412893,366406,1260745,114,58959735
+CQRRT_linop,0,IR,2063319,11126,1071456,536086,434087,10564,0,0,0,0,0
+CholQR,0,QR,0,0,0,0,0,0,0,0,0,0,0
+CholQR,0,IR,0,0,0,0,0,0,0,0,0,0,0
+sCholQR3,0,QR,0,0,0,0,0,0,0,0,0,0,0
+sCholQR3,0,IR,0,0,0,0,0,0,0,0,0,0,0
+sCholQR3_basic,0,QR,0,0,0,0,0,0,0,0,0,0,0
+sCholQR3_basic,0,IR,0,0,0,0,0,0,0,0,0,0,0
+CQRRT_linop_bqrrp,0,QR,778483,16961369,4565663,18740157,16544158,15841398,2380480,386051,1234097,137,77431993
+CQRRT_linop_bqrrp,0,IR,2534761,12046,1446882,585353,466177,24303,0,0,0,0,0

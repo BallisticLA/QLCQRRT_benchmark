@@ -7,7 +7,14 @@
 %
 % CSV schema (results):
 %   algorithm, run, m, n, qr_status, qr_time_us, peak_rss_kb, analytical_kb,
-%   ir_total_us, ir_outer_iters, ir_inner_iters_total, ls_residual_norm, ls_solution_error
+%   orth_error, ir_total_us, ir_outer_iters, ir_inner_iters_total,
+%   ls_residual_norm, ls_solution_error
+%
+% ls_residual_norm uses the Higham normwise backward-error metric
+%   ||A x - b|| / (||A||_2 * ||x|| + ||b||),
+% drivable to machine epsilon for a backward-stable LS solver.
+%
+% ls_solution_error is -1 / NaN when no ground-truth x_true exists (FEM b = L^{-1} r).
 %
 % CSV schema (breakdown):
 %   algorithm, run, phase, t0..t10
@@ -40,10 +47,8 @@ w_ltgray    = [0.85 0.85 0.85];
 %  Algorithm display order.  GEQP3-stabilized variant (CQRRT_linop_stb) is
 %  intentionally absent: the benchmark dropped that path.
 % =========================================================================
-alg_csv_order  = {'CQRRT_linop', 'CQRRT_linop_bqrrp', ...
-                  'CholQR', 'sCholQR3_basic', 'sCholQR3'};
-alg_disp_names = {'CQRRT\_linop', 'CQRRT\_linop\_bqrrp', ...
-                  'CholQR', 'sCholQR3', 'sCholQR3\_se'};
+alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3'};
+alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3', 'sCholQR3\_se'};
 
 % =========================================================================
 %  Load CSVs.  count_comment_lines is a helper in this directory; we rely on
@@ -67,7 +72,7 @@ analytical_kb    = T.analytical_kb;
 ir_total_us      = T.ir_total_us;
 ir_inner_total   = T.ir_inner_iters_total;
 ls_residual_norm = T.ls_residual_norm;
-ls_solution_err  = T.ls_solution_error;
+orth_error       = T.orth_error;
 m_val            = T.m(1);
 n_val            = T.n(1);
 
@@ -115,11 +120,12 @@ for a = 1:n_algs
 end
 
 % =========================================================================
-%  Main figure: 2x2 layout
+%  Main figure: 2x3 layout (5 panels; bottom-right tile blank)
 %    (1) Stacked timing: QR + IR
-%    (2) Solution error  ||x - x_true|| / ||x_true||
-%    (3) Residual error  ||b - A x|| / ||b||
-%    (4) Memory: peak RSS vs analytical prediction
+%    (2) Residual: Higham normwise backward error
+%    (3) Memory: peak RSS vs analytical prediction
+%    (4) Inner CG iterations (total)
+%    (5) Q-factor orthogonality loss ||Q^T Q - I||_F / sqrt(n)
 % =========================================================================
 if isempty(main_tab)
     figure('Position', [100, 100, 1100, 900]);
@@ -155,30 +161,14 @@ for a = 1:n_algs
     end
 end
 
-% ---- (2) Solution error ----
-nexttile(tl_main);
-sol_err = arrayfun(@(i) ls_solution_err(i), sel_idx);
-sol_err(sel_failed) = NaN;
-sol_err(sol_err < 0) = NaN;
-bar(x_pos, sol_err, 'FaceColor', w_green); set(gca, 'YScale', 'log');
-ylabel('||x - x_{true}|| / ||x_{true}||'); title('Solution error');
-xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
-grid on; box on;
-yl = ylim;
-for a = 1:n_algs
-    if sel_failed(a) || isnan(sol_err(a))
-        text(x_pos(a), yl(2)*0.9, 'FAIL', 'HorizontalAlignment', 'center', ...
-             'FontWeight', 'bold', 'Color', w_vermilion);
-    end
-end
-
-% ---- (3) Residual ||b - A x|| / ||b|| ----
+% ---- (2) Residual: Higham normwise backward error ----
 nexttile(tl_main);
 resid = arrayfun(@(i) ls_residual_norm(i), sel_idx);
 resid(sel_failed) = NaN;
 resid(resid < 0) = NaN;
 bar(x_pos, resid, 'FaceColor', w_skyblue); set(gca, 'YScale', 'log');
-ylabel('||b - A x|| / ||b||'); title('Relative residual');
+ylim([1e-16, 1e0]);
+ylabel('||Ax - b|| / (||A||\cdot||x|| + ||b||)'); title('Normwise backward error');
 xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
 grid on; box on;
 yl = ylim;
@@ -189,7 +179,7 @@ for a = 1:n_algs
     end
 end
 
-% ---- (4) Memory: peak RSS vs analytical prediction ----
+% ---- (3) Memory: peak RSS vs analytical prediction ----
 nexttile(tl_main);
 mem_peak = arrayfun(@(i) peak_rss_kb(i),   sel_idx) / 1024;     % MB
 mem_pred = arrayfun(@(i) analytical_kb(i), sel_idx) / 1024;     % MB
@@ -201,7 +191,7 @@ ylabel('Memory (MB)'); title('Peak vs predicted working memory');
 xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
 legend('Location', 'northwest'); grid on; box on;
 
-% ---- (5) Inner CG iterations (total across both outer IR steps) ----
+% ---- (4) Inner CG iterations (total across both outer IR steps) ----
 % Algorithmic signal: lower = R is a better preconditioner for A^T A.
 % Outer iters are fixed at n_refine_steps = 2 by construction; only inner CG
 % varies across algorithms, so we plot only inner totals.
@@ -226,6 +216,24 @@ for a = 1:n_algs
     end
 end
 
+% ---- (5) Orthogonality loss in Q-factor: ||Q^T Q - I||_F / sqrt(n) ----
+nexttile(tl_main);
+orth_vals = arrayfun(@(i) orth_error(i), sel_idx);
+orth_vals(sel_failed) = NaN;
+orth_vals(orth_vals < 0) = NaN;
+bar(x_pos, orth_vals, 'FaceColor', w_vermilion); set(gca, 'YScale', 'log');
+ylim([1e-16, 1e0]);
+ylabel('||Q^T Q - I||_F / \surd n'); title('Q-factor orthogonality loss');
+xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
+grid on; box on;
+yl = ylim;
+for a = 1:n_algs
+    if sel_failed(a) || isnan(orth_vals(a))
+        text(x_pos(a), yl(2)*0.9, 'FAIL', 'HorizontalAlignment', 'center', ...
+             'FontWeight', 'bold', 'Color', w_vermilion);
+    end
+end
+
 % =========================================================================
 %  Breakdown figure (optional): IR-LSQ phase breakdown stacked bar
 %  Layout (6 fields): outer_total, inner_cg_total, trsm, fwd, adj, other
@@ -244,8 +252,16 @@ if isfile(breakdown_path)
     title(tl_bd, sprintf('IR-LSQ runtime breakdown — %s', title_label), 'FontWeight', 'bold');
 
     % Build a per-algorithm matrix [x0_init | inner_cg | trsm | fwd | adj | other] in ms.
-    % x0_init (pseudocode line 3) sits at the bottom of the stack as a separate phase;
-    % the remaining 5 segments are the driver-internal IR breakdown (lines 5-7).
+    %
+    % x0_init = ir_total_us (results CSV) - outer_total (breakdown CSV t0). It's
+    % the sketch-and-solve initial guess that runs *before* IterRefineLSQ::call;
+    % its time is folded into ir_total_us in the results CSV (matching what the
+    % speed plot's IR-LSQ stacked bar shows) but not into outer_total in the
+    % breakdown CSV, so the stacked bars wouldn't otherwise add up to the speed
+    % plot's IR segment. We reconstruct it here so they match.
+    %
+    % The remaining 5 segments (inner_cg, trsm, fwd, adj, other) come from
+    % IterRefineLSQ's populate_times() and sum to outer_total = t0.
     ir_breakdown = zeros(n_algs, 6);
     for a = 1:n_algs
         if sel_failed(a), continue; end
@@ -253,12 +269,14 @@ if isfile(breakdown_path)
         match = strcmp(Tb.algorithm, unique_algs{a}) & Tb.run == run_idx & strcmp(Tb.phase, 'IR');
         idx = find(match, 1);
         if isempty(idx), continue; end
-        ir_breakdown(a, 1) = Tb.t6(idx) / 1000;  % x0_init  (sketch-and-solve)
-        ir_breakdown(a, 2) = Tb.t1(idx) / 1000;  % inner_cg ex. fwd/adj/trsm
-        ir_breakdown(a, 3) = Tb.t2(idx) / 1000;  % trsm
-        ir_breakdown(a, 4) = Tb.t3(idx) / 1000;  % fwd
-        ir_breakdown(a, 5) = Tb.t4(idx) / 1000;  % adj
-        ir_breakdown(a, 6) = Tb.t5(idx) / 1000;  % other
+        outer_total_us  = Tb.t0(idx);
+        x0_init_us      = max(0, ir_total_us(sel_idx(a)) - outer_total_us);
+        ir_breakdown(a, 1) = x0_init_us  / 1000;  % x0_init  (sketch-and-solve)
+        ir_breakdown(a, 2) = Tb.t1(idx)  / 1000;  % inner_cg ex. fwd/adj/trsm
+        ir_breakdown(a, 3) = Tb.t2(idx)  / 1000;  % trsm
+        ir_breakdown(a, 4) = Tb.t3(idx)  / 1000;  % fwd
+        ir_breakdown(a, 5) = Tb.t4(idx)  / 1000;  % adj
+        ir_breakdown(a, 6) = Tb.t5(idx)  / 1000;  % other
     end
 
     nexttile(tl_bd);
