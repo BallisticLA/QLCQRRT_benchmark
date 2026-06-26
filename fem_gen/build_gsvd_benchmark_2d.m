@@ -40,8 +40,23 @@ p.addParameter('HmaxCoarse', 0.18, @(x)isnumeric(x)&&isscalar(x)&&x>0);
 p.addParameter('Hgrad',      1.35, @(x)isnumeric(x)&&isscalar(x)&&x>1);
 p.addParameter('Plot',       true, @(x)islogical(x)||ismember(x,[0 1]));
 p.addParameter('AlphaReg',   1e-8, @(x)isnumeric(x)&&isscalar(x)&&x>=0); % Kmetric = K + alpha*scale*M
+% Coefficient model:
+%   'ill'      = Oleg's original cCoeffIllConditioned (extreme, near-disconnecting
+%                ligand, kappa ~ 2e13 by design -- the GSVD stress test).
+%   'contrast' = smooth full-rank field with conductivity contrast c_max/c_min = Rho
+%                (no near-disconnect -> no spurious null mode). Use this + calibrate
+%                Rho to dial kappa(L^{-1}KV) to a target. (See gen_fem2_kappa_variants.m.)
+p.addParameter('Coeff', 'contrast', @(s)ischar(s)||isstring(s));
+p.addParameter('Rho',   1e3,        @(x)isnumeric(x)&&isscalar(x)&&x>=1);
 p.parse(varargin{:});
 opts = p.Results;
+
+% Select the coefficient function handle once; used for both fine and coarse models.
+if strcmpi(opts.Coeff, 'ill')
+    coeffFn = @cCoeffIllConditioned;
+else
+    coeffFn = @(loc,st) cCoeffContrast(loc, opts.Rho);
+end
 
 % ----------------------------
 % Geometry: complex plate with holes + slit-like cutouts + re-entrant corner
@@ -57,7 +72,7 @@ geometryFromEdges(modelF, dl);
 specifyCoefficients(modelF, ...
     "m", 0, ...
     "d", 1, ...   % ensures a nonzero mass matrix M in assembly
-    "c", @cCoeffIllConditioned, ...
+    "c", coeffFn, ...
     "a", 0, ...
     "f", 0);
 %"c", @cCoeffHeterogeneous, ...
@@ -84,7 +99,7 @@ geometryFromEdges(modelC, dl);
 specifyCoefficients(modelC, ...
     "m", 0, ...
     "d", 1, ...
-    "c", @cCoeffIllConditioned, ...
+    "c", coeffFn, ...
     "a", 0, ...
     "f", 0);
 applyBoundaryCondition(modelC, "dirichlet", ...
@@ -468,4 +483,31 @@ c(ring) = 1e6;
 
 % Strict positivity safeguard
 c = max(c, 1e-8);
+end
+
+function c = cCoeffContrast(location, rho)
+% Scalar conductivity c(x,y) for PDE Toolbox, smooth and STRICTLY POSITIVE,
+% with conductivity contrast c_max/c_min = rho. Unlike cCoeffIllConditioned
+% there is NO near-disconnecting ligament, so the assembled K (and L^{-1}KV)
+% stays full-rank with a clean spectrum -- kappa is *controlled*, not
+% near-singular. This is the coefficient to use when you want to dial kappa
+% to a target (1e7, 1e9, 1e11, ...) rather than reproduce Oleg's stress test.
+%
+% kappa(L^{-1}KV) increases monotonically with rho; calibrate rho -> kappa
+% empirically with gen_fem2_kappa_variants.m (sweeps rho, measures kappa via SVD).
+%
+% Domain is roughly [0,4] x [0,2] (see makeComplexGeometryCSG).
+
+x = location.x;
+y = location.y;
+
+% Smooth exponent s(x,y) in [-1/2, 1/2]: a separable cosine grading that
+% reaches both extremes at the domain corners, so the realized contrast is rho.
+s = 0.5 * cos(pi*x/4) .* cos(pi*y/2);
+
+% Log-uniform conductivity: c in [rho^{-1/2}, rho^{+1/2}]  ->  c_max/c_min = rho.
+c = rho .^ s;
+
+% Strict positivity safeguard (rho >= 1 already guarantees this; kept for parity).
+c = max(c, realmin);
 end

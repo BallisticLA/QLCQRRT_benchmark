@@ -1,0 +1,17 @@
+# Sparse IR-LSQ (regularized augmented operator) Benchmark results
+# Date: Sat Jun 20 05:25:27 2026
+# input=L^{-1} K (V D) (M=/lustre/isaac24/scratch/mmelnic1/data/CQRRT/FEM_Problem_2_kappa1e9_151648x16608_M.mtx)
+# M=151648 N=16608 nnz=1054144
+# d_factor=2 sketch_nnz=4 block_size=256
+# method_mask=31
+# kappa_target=1 mu=5.96046e-07
+# precond_prec=single solve_prec=single
+# A_hat = [A; mu*I];  R = chol(A^T A + mu^2 I) built in precond_prec,
+#   used as right preconditioner for IterRefineLSQ run in solve_prec.
+# OpenMP threads: 128
+algorithm,run,m,n,qr_status,qr_time_us,peak_rss_kb,analytical_kb,orth_error,ir_total_us,ir_outer_iters,ir_inner_iters_total,ls_residual_norm,ls_solution_error,kappa_target,kappa_measured,mu,precond_prec,solve_prec
+CQRRT_linop,0,151648,16608,0,42175769,5971968,5538932,4.844259e-06,859004,2,4,2.150260e-08,5.175836e-06,1.000000e+00,2.283913e+08,5.960464e-07,single,single
+CholQR,0,151648,16608,0,22698857,2337568,2323144,1.116492e-05,843656,2,3,2.150483e-08,2.876225e-06,1.000000e+00,2.283906e+08,5.960464e-07,single,single
+sCholQR3,0,151648,16608,0,97484438,4533176,5707124,4.850189e-01,35437487,2,202,2.091065e-08,1.071293e-01,1.000000e+00,4.164140e+05,5.960464e-07,single,single
+sCholQR3_basic,0,151648,16608,0,83444686,33856648,26140992,4.850189e-01,35601489,2,202,2.091065e-08,1.071293e-01,1.000000e+00,4.164140e+05,5.960464e-07,single,single
+CholQR2,0,151648,16608,0,74134156,4492040,4629680,1.190643e-06,990820,2,4,2.193814e-08,3.961114e-06,1.000000e+00,2.283913e+08,5.960464e-07,single,single

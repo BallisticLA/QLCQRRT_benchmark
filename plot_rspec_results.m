@@ -2,15 +2,24 @@ function plot_rspec_results(data_dir, results_csv, title_suffix, main_tab)
 % plot_rspec_results — visualize one RSPEC (Algorithm 4, reduced spectral
 % approximation) CSV from CQRRT_linop_applications.
 %
-% CSV schema (post-2026-06-05 binary):
+% CSV schema (post-2026-06-09 binary):
 %   algorithm, run, m, n, omega, power_j, qr_status, qr_time_us,
-%   peak_rss_kb, analytical_kb, factor_time_us, rspec_total_us,
+%   peak_rss_kb, analytical_kb, factor_time_us, rspec_total_us, orth_error,
 %   eig_0 .. eig_9, resid_0 .. resid_9
 %
-% Layout (2x3): wall-time stacked (PCholQR + post-processing),
-%   memory (peak vs analytical), Ritz residuals (log scale, grouped by
-%   eigenvalue rank), top-k eigenvalues (signed, grouped), eigenvalue
-%   agreement table, blank.
+% resid_i is the ordinary C-eigenresidual ||C y_i - lambda_i y_i|| /
+%   (|lambda_max| ||y_i||), where y_i = Q u_i is the Ritz vector. orth_error is
+%   ||Q^T Q - I||_F / sqrt(n) with Q = V_app R^{-1}.
+%
+% Layout (2x2):
+%   (1) wall-time stacked (PCholQR + RR/syevd/residuals post-processing),
+%   (2) memory (peak vs analytical),
+%   (3) top-k Ritz residuals ||C y - lambda y|| / (|lambda_max| ||y||),
+%       y = Q u, log scale grouped by eigenvalue rank,
+%   (4) Q-factor orthogonality loss ||Q^T Q - I||_F / sqrt(n).
+%   Accuracy is reported by exactly two panels — (3) Ritz residuals and (4)
+%   orth loss; the prior top-k eigenvalue + eigenvalue-agreement accuracy
+%   panels were dropped. Speed (1) and storage (2) remain.
 %
 % Usage:
 %   plot_rspec_results(data_dir, results_csv)
@@ -47,6 +56,7 @@ qr_time       = T.qr_time_us;
 peak_rss_kb   = T.peak_rss_kb;
 analytical_kb = T.analytical_kb;
 rspec_total   = T.rspec_total_us;
+orth_error    = T.orth_error;
 m_val         = T.m(1);
 n_val         = T.n(1);
 omega_val     = T.omega(1);
@@ -109,7 +119,7 @@ if isempty(main_tab)
 else
     parent_main = main_tab;
 end
-tl_main = tiledlayout(parent_main, 2, 3, 'TileSpacing', 'compact', 'Padding', 'compact');
+tl_main = tiledlayout(parent_main, 2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 
 title_label = sprintf('RSPEC (Algorithm 4) — %d \\times %d, \\omega=%g, j=%d', ...
                        m_val, n_val, omega_val, power_j_val);
@@ -165,53 +175,26 @@ for a = 1:n_algs
 end
 set(gca, 'YScale', 'log');
 ylim([1e-12, 1e3]);
-ylabel('Ritz residual  ||K v - \lambda M v|| / (||K v|| + |\lambda| ||M v||)');
+ylabel('Ritz residual  ||C y - \lambda y|| / (|\lambda_{max}| ||y||),  y = Q u');
 xlabel('Ritz pair rank (by |\lambda|)');
 title('Top-k Ritz residuals');
 legend('Location', 'northeastoutside'); grid on; box on;
 
-% ---- (4) Top-k eigenvalues (signed, grouped by rank) ----
+% ---- (4) Q-factor orthogonality loss: ||Q^T Q - I||_F / sqrt(n) (log scale) ----
 nexttile(tl_main);
-eig_per_alg = zeros(n_algs, top_k);
-for a = 1:n_algs
-    if sel_failed(a), continue; end
-    eig_per_alg(a, :) = eigvals(sel_idx(a), :);
-end
-b = bar(1:top_k, eig_per_alg', 'grouped');
-for a = 1:n_algs
-    b(a).DisplayName = disp_labels{a};
-end
-ylabel('\lambda  (signed)');
-xlabel('Ritz pair rank (by |\lambda|)');
-title('Top-k Ritz eigenvalues');
-legend('Location', 'northeastoutside'); grid on; box on;
-
-% ---- (5) Eigenvalue agreement: relative spread across methods ----
-nexttile(tl_main);
-abs_eig = abs(eig_per_alg);
-abs_eig(sel_failed, :) = NaN;
-spread = (max(abs_eig, [], 1, 'omitnan') - min(abs_eig, [], 1, 'omitnan')) ...
-       ./ max(1e-30, max(abs_eig, [], 1, 'omitnan'));
-bar(1:top_k, spread, 'FaceColor', w_skyblue);
+orth_per_alg = arrayfun(@(i) orth_error(i), sel_idx);
+orth_per_alg(sel_failed) = NaN;
+orth_per_alg(orth_per_alg <= 0) = NaN;          % sentinel (-1) / non-positive -> skip
+bar(x_pos, max(orth_per_alg, 1e-16), 'FaceColor', w_purple);
 set(gca, 'YScale', 'log');
 ylim([1e-16, 1e0]);
-ylabel('(max - min) / max  across surviving methods');
-xlabel('Ritz pair rank (by |\lambda|)');
-title('Eigenvalue agreement across methods');
-grid on; box on;
-
-% ---- (6) Total wall time per algorithm (single bar; complements panel 1) ----
-nexttile(tl_main);
-total_ms_clean = arrayfun(@(i) rspec_total(i) / 1000, sel_idx);
-total_ms_clean(sel_failed) = 0;
-bar(x_pos, total_ms_clean / 1000, 'FaceColor', w_blue);   % seconds
-ylabel('Total rspec wall time (s)');
-title('Total wall time');
+ylabel('||Q^T Q - I||_F / \surd n');
+title('Q-factor orthogonality loss');
 xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
 grid on; box on;
 for a = 1:n_algs
-    if sel_failed(a)
-        text(x_pos(a), 1, 'FAIL', 'HorizontalAlignment', 'center', ...
+    if sel_failed(a) || isnan(orth_per_alg(a))
+        text(x_pos(a), 1e-8, 'FAIL', 'HorizontalAlignment', 'center', ...
              'FontWeight', 'bold', 'Color', w_vermilion);
     end
 end

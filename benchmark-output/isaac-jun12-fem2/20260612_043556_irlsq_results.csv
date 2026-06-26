@@ -1,0 +1,14 @@
+# Sparse IR-LSQ Benchmark results
+# Date: Fri Jun 12 04:35:56 2026
+# input=/lustre/isaac24/scratch/mmelnic1/data/CQRRT/FEM_Problem_2_corrected_303296x33216_K.mtx
+# M=303296 N=33216 nnz=2108288
+# noise_level=0.05
+# d_factor=2 sketch_nnz=4 block_size=256
+# method_mask=31
+# OpenMP threads: 128
+algorithm,run,m,n,qr_status,qr_time_us,peak_rss_kb,analytical_kb,orth_error,ir_total_us,ir_outer_iters,ir_inner_iters_total,ls_residual_norm,ls_solution_error
+CQRRT_linop,0,303296,33216,0,263000246,45830172,43704611,3.986194e-04,3766821,2,15,3.750302e-13,-1.000000e+00
+CholQR,0,303296,33216,0,134717695,17871756,17912128,1.427064e-02,32918591,2,144,3.762163e-13,-1.000000e+00
+sCholQR3,0,303296,33216,0,458320184,35235620,44377376,9.724609e-05,3376739,2,13,3.766591e-13,-1.000000e+00
+sCholQR3_basic,0,303296,33216,0,430762574,262114692,209127936,9.724609e-05,3450279,2,13,3.766591e-13,-1.000000e+00
+CholQR2,0,303296,33216,0,298437062,35158484,35757824,9.770847e-05,3270764,2,13,3.736205e-13,-1.000000e+00

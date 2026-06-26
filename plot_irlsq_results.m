@@ -3,7 +3,7 @@
 % The sparse-input IR-LSQ benchmark runs every Q-less QR variant selected by
 % method_mask through the IR-LSQ pipeline (Algorithm 1, Epperly–Meier–Nakatsukasa
 % 2025) on a tall sparse matrix loaded from a .mtx file. Each (algorithm, run)
-% does Q-less QR → sketch-and-solve x_0 → 2-step IR with inner CG.
+% does Q-less QR → 2-step IR (x_0 = 0) with inner CG.
 %
 % CSV schema (results):
 %   algorithm, run, m, n, qr_status, qr_time_us, peak_rss_kb, analytical_kb,
@@ -150,7 +150,7 @@ ir_ms  = arrayfun(@(i) ir_total_us(i)/1000, sel_idx);
 qr_ms(sel_failed) = 0;  ir_ms(sel_failed) = 0;
 b = bar(x_pos, [qr_ms, ir_ms], 'stacked');
 b(1).FaceColor = w_blue;     b(1).DisplayName = 'QR';
-b(2).FaceColor = w_orange;   b(2).DisplayName = 'IR-LSQ (incl. x_0)';
+b(2).FaceColor = w_orange;   b(2).DisplayName = 'IR-LSQ (x_0 = 0)';
 ylabel('Time (ms)'); title('Wall-time per algorithm');
 xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
 legend('Location', 'northwest'); grid on; box on;
@@ -251,42 +251,31 @@ if isfile(breakdown_path)
     tl_bd = tiledlayout(parent_bd, 1, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
     title(tl_bd, sprintf('IR-LSQ runtime breakdown — %s', title_label), 'FontWeight', 'bold');
 
-    % Build a per-algorithm matrix [x0_init | inner_cg | trsm | fwd | adj | other] in ms.
-    %
-    % x0_init = ir_total_us (results CSV) - outer_total (breakdown CSV t0). It's
-    % the sketch-and-solve initial guess that runs *before* IterRefineLSQ::call;
-    % its time is folded into ir_total_us in the results CSV (matching what the
-    % speed plot's IR-LSQ stacked bar shows) but not into outer_total in the
-    % breakdown CSV, so the stacked bars wouldn't otherwise add up to the speed
-    % plot's IR segment. We reconstruct it here so they match.
-    %
-    % The remaining 5 segments (inner_cg, trsm, fwd, adj, other) come from
-    % IterRefineLSQ's populate_times() and sum to outer_total = t0.
-    ir_breakdown = zeros(n_algs, 6);
+    % Build a per-algorithm matrix [inner_cg | trsm | fwd | adj | other] in ms.
+    % All 5 segments come from IterRefineLSQ's populate_times() and sum to
+    % outer_total = t0. (x_0 = 0 now: there is no sketch-and-solve initial guess,
+    % so ir_total_us matches outer_total up to loop overhead — no x0 segment.)
+    ir_breakdown = zeros(n_algs, 5);
     for a = 1:n_algs
         if sel_failed(a), continue; end
         run_idx = T.run(sel_idx(a));
         match = strcmp(Tb.algorithm, unique_algs{a}) & Tb.run == run_idx & strcmp(Tb.phase, 'IR');
         idx = find(match, 1);
         if isempty(idx), continue; end
-        outer_total_us  = Tb.t0(idx);
-        x0_init_us      = max(0, ir_total_us(sel_idx(a)) - outer_total_us);
-        ir_breakdown(a, 1) = x0_init_us  / 1000;  % x0_init  (sketch-and-solve)
-        ir_breakdown(a, 2) = Tb.t1(idx)  / 1000;  % inner_cg ex. fwd/adj/trsm
-        ir_breakdown(a, 3) = Tb.t2(idx)  / 1000;  % trsm
-        ir_breakdown(a, 4) = Tb.t3(idx)  / 1000;  % fwd
-        ir_breakdown(a, 5) = Tb.t4(idx)  / 1000;  % adj
-        ir_breakdown(a, 6) = Tb.t5(idx)  / 1000;  % other
+        ir_breakdown(a, 1) = Tb.t1(idx)  / 1000;  % inner_cg ex. fwd/adj/trsm
+        ir_breakdown(a, 2) = Tb.t2(idx)  / 1000;  % trsm
+        ir_breakdown(a, 3) = Tb.t3(idx)  / 1000;  % fwd
+        ir_breakdown(a, 4) = Tb.t4(idx)  / 1000;  % adj
+        ir_breakdown(a, 5) = Tb.t5(idx)  / 1000;  % other
     end
 
     nexttile(tl_bd);
     b = bar(x_pos, ir_breakdown, 'stacked');
-    b(1).FaceColor = w_purple;    b(1).DisplayName = 'x_0 init (line 3)';
-    b(2).FaceColor = w_orange;    b(2).DisplayName = 'inner CG control (axpy/dot)';
-    b(3).FaceColor = w_skyblue;   b(3).DisplayName = 'TRSM';
-    b(4).FaceColor = w_green;     b(4).DisplayName = 'J fwd';
-    b(5).FaceColor = w_vermilion; b(5).DisplayName = 'J^T adj';
-    b(6).FaceColor = w_gray;      b(6).DisplayName = 'axpy/copy/nrm2';
+    b(1).FaceColor = w_orange;    b(1).DisplayName = 'inner CG control (axpy/dot)';
+    b(2).FaceColor = w_skyblue;   b(2).DisplayName = 'TRSM';
+    b(3).FaceColor = w_green;     b(3).DisplayName = 'J fwd';
+    b(4).FaceColor = w_vermilion; b(4).DisplayName = 'J^T adj';
+    b(5).FaceColor = w_gray;      b(5).DisplayName = 'axpy/copy/nrm2';
     ylabel('Time (ms)'); title('IR-LSQ phase breakdown');
     xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
     legend('Location', 'northeastoutside'); grid on; box on;
