@@ -1,4 +1,4 @@
-function gen_fem2_small_local(out_dir, rho, nxf, nyf, r)
+function [K, M, V] = gen_fem2_small_local(out_dir, rho, nxf, nyf, r, coeff, rotate)
 %GEN_FEM2_SMALL_LOCAL  Toolbox-free small FEM2-style (K, M, V) generator.
 %
 % Pure base-MATLAB P1 FEM on a structured triangulation of [0,4]x[0,2] -- needs
@@ -22,41 +22,73 @@ function gen_fem2_small_local(out_dir, rho, nxf, nyf, r)
 %   gen_fem2_small_local(out_dir, rho, nxf, nyf, r)    % full control
 
 here = fileparts(mfilename('fullpath'));
-if nargin < 1 || isempty(out_dir), out_dir = fullfile(here, 'input_matrices_local'); end
+addpath(fullfile(here, 'utils'));                 % compute_kappa_variants
+if nargin < 1, out_dir = fullfile(here, 'input_matrices_local'); end
 if nargin < 2 || isempty(rho), rho = 1e5; end
 if nargin < 3 || isempty(nxf), nxf = 96; end     % fine cells in x
 if nargin < 4 || isempty(nyf), nyf = 48; end     % fine cells in y  ([0,4]x[0,2] -> ~square cells)
 if nargin < 5 || isempty(r),   r   = 3;  end      % coarsening factor (V: coarse->fine)
+if nargin < 6 || isempty(coeff), coeff = 'smooth'; end
+if nargin < 7 || isempty(rotate), rotate = false; end   % false | true | seed(scalar)
 assert(mod(nxf, r) == 0 && mod(nyf, r) == 0, 'r must divide both nxf and nyf');
-if ~exist(out_dir, 'dir'), mkdir(out_dir); end
+
+% Coefficient c(x,y):
+%   'smooth'   = log-uniform gradient -> pure column scaling (easy: kappa^colnorm ~ tens)
+%   'regional' = sharp piecewise blocks (candidate for a HARD kappa^colnorm, i.e.
+%                ill-conditioning that survives column normalization)
+if strcmpi(coeff, 'regional')
+    coeffFn = @(cx, cy) cCoeffRegional(cx, cy, rho);
+else
+    coeffFn = @(cx, cy) cCoeffContrast(cx, cy, rho);
+end
 
 Lx = 4; Ly = 2;
-[K, M, freeF] = assemble_fem(nxf, nyf, Lx, Ly, rho);
+[K, M, freeF] = assemble_fem(nxf, nyf, Lx, Ly, coeffFn);
 [Vfull, freeC] = prolongation(nxf, nyf, r);
 V = Vfull(freeF, freeC);
 V = V(:, any(V, 1));                              % drop any all-zero coarse columns (defensive)
+
+% Rotate the coarse basis V -> V*W (W random orthogonal, reproducibly seeded).
+% Leaves kappa(J)=kappa(J*W) unchanged (orthogonal), but smears the column-norm
+% spread across all columns so kappa^colnorm(J*W) ~ kappa(J) -- i.e. it converts the
+% cheap (column-scaling) ill-conditioning of the coefficient field into GENUINE,
+% equilibration-surviving hardness. Verified: coefficient contrast alone cannot do
+% this (the coarse projection averages it out); the rotation is what makes the test
+% hard. V*W densifies, so keep the base small and Kron-expand for larger sizes.
+if ~isequal(rotate, false)
+    seed = 0;  if isnumeric(rotate), seed = rotate; end
+    rs = RandStream('threefry', 'Seed', seed);
+    [W, ~] = qr(randn(rs, size(V, 2)));
+    V = full(V) * W;
+end
+
 m = size(K, 1);  n = size(V, 2);
-fprintf('fine free DOFs m=%d, coarse free DOFs n=%d, rho=%.3e\n', m, n, rho);
+fprintf('fine free DOFs m=%d, coarse free DOFs n=%d, rho=%.3e, coeff=%s, rotate=%d\n', ...
+        m, n, rho, coeff, ~isequal(rotate, false));
 
-% kappa(J) -- dense SVD is cheap at this size
-L = chol(M, 'lower');
-s = svd(full(L \ (K * V)));
-fprintf('kappa(J) = %.3e   sigma_max=%.3e  sigma_min=%.3e\n', s(1)/s(end), s(1), s(end));
+% Report BOTH kappa and the column-equilibrated kappa^colnorm (dense SVD, cheap here).
+[kap, kapc, smin, smax, spread] = compute_kappa_variants(K, M, V);
+fprintf('kappa(J)=%.3e  kappa^colnorm=%.3e  colspread=%.3e  smin=%.3e smax=%.3e\n', ...
+        kap, kapc, spread, smin, smax);
 
-base   = sprintf('FEM2_local_rho%g', rho);
-suffix = sprintf('%dx%d', m, n);
-Kf = fullfile(out_dir, sprintf('%s_%s_K.mtx', base, suffix));
-Mf = fullfile(out_dir, sprintf('%s_%s_M.mtx', base, suffix));
-Vf = fullfile(out_dir, sprintf('%s_%s_V.mtx', base, suffix));
-write_mtx_sym(Kf, K);  write_mtx_sym(Mf, M);  write_mtx_gen(Vf, V);
-fprintf('wrote %s_%s_{K,M,V}.mtx to %s\n', base, suffix, out_dir);
+% Write .mtx only when called as a command (no output captured); return-only otherwise.
+if nargout == 0
+    base   = sprintf('FEM2_local_%s_rho%g', coeff, rho);
+    suffix = sprintf('%dx%d', m, n);
+    if ~exist(out_dir, 'dir'), mkdir(out_dir); end
+    Kf = fullfile(out_dir, sprintf('%s_%s_K.mtx', base, suffix));
+    Mf = fullfile(out_dir, sprintf('%s_%s_M.mtx', base, suffix));
+    Vf = fullfile(out_dir, sprintf('%s_%s_V.mtx', base, suffix));
+    write_mtx_sym(Kf, K);  write_mtx_sym(Mf, M);  write_mtx_gen(Vf, V);
+    fprintf('wrote %s_%s_{K,M,V}.mtx to %s\n', base, suffix, out_dir);
+end
 end
 
 
 % ===========================================================================
-function [K, M, freeF] = assemble_fem(nx, ny, Lx, Ly, rho)
+function [K, M, freeF] = assemble_fem(nx, ny, Lx, Ly, coeffFn)
 % P1 FEM stiffness + consistent mass on a structured triangulation, homogeneous
-% Dirichlet (interior DOFs kept). Coefficient evaluated at element centroids.
+% Dirichlet (interior DOFs kept). coeffFn(cx,cy) gives conductivity at element centroids.
 nnodes = (nx+1) * (ny+1);
 xs = linspace(0, Lx, nx+1);  ys = linspace(0, Ly, ny+1);
 nid = @(i, j) j*(nx+1) + i + 1;            % i=0..nx, j=0..ny -> 1-based id
@@ -89,7 +121,7 @@ for e = 1:ntri
     A  = 0.5 * abs((x2-x1)*(y3-y1) - (x3-x1)*(y2-y1));
     b  = [y2-y3; y3-y1; y1-y2];                 % d phi / dx numerators
     c  = [x3-x2; x1-x3; x2-x1];                 % d phi / dy numerators
-    ce = cCoeffContrast(mean([x1 x2 x3]), mean([y1 y2 y3]), rho);
+    ce = coeffFn(mean([x1 x2 x3]), mean([y1 y2 y3]));
     Ke = (ce / (4*A)) * (b*b' + c*c');
     Me = (A / 12) * Mloc;
     for a = 1:3
@@ -158,6 +190,24 @@ function c = cCoeffContrast(x, y, rho)
 % Smooth log-uniform conductivity, contrast c_max/c_min = rho, no near-disconnect.
 s = 0.5 * cos(pi*x/4) .* cos(pi*y/2);
 c = rho .^ s;
+end
+
+function c = cCoeffRegional(x, y, rho)
+% Sharp piecewise-constant conductivity, contrast c_max/c_min = rho
+% (c in [rho^-1/2, rho^1/2]). Isolated SOFT islands in a stiff sea + a few stiff
+% channels -> many sharp material interfaces and weakly-coupled island modes.
+% NO near-disconnecting ligament, so the operator stays full rank. This is the
+% Oleg-style regional contrast (his cCoeffIllConditioned minus the x~=1 ligament),
+% tested as a candidate for a hard, equilibration-surviving kappa^colnorm.
+% Domain [0,4] x [0,2]. Vectorized (accepts scalar or array x,y).
+hi = sqrt(rho);  lo = 1/sqrt(rho);
+c = hi * ones(size(x));                              % stiff sea
+soft = (x>0.40 & x<0.95 & y>0.45 & y<1.05) | ...     % isolated soft islands
+       (x>1.60 & x<2.15 & y>0.90 & y<1.55) | ...
+       (x>2.85 & x<3.40 & y>0.25 & y<0.85) | ...
+       (x>3.10 & x<3.60 & y>1.20 & y<1.75) | ...
+       (x>0.90 & x<1.35 & y>1.35 & y<1.85);
+c(soft) = lo;
 end
 
 function write_mtx_sym(fname, A)

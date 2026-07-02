@@ -1,35 +1,37 @@
 % Resolve paths relative to this script's location (works on any machine)
 script_dir = fileparts(mfilename('fullpath'));
 addpath(script_dir);                                  % plotting helpers + count_comment_lines
-addpath(fullfile(script_dir, 'utils'));                % resize_fem_pair, resize_sparse_matrix, etc.
+addpath(fullfile(script_dir, 'utils'));                % apply_butterfly, compute_kappa_variants
 
 %% ========================================================================
 %  FEM_Problem_2 — Application 1 (IR-LSQ, regularized augmented operator)
-%                  ISAAC 2026-06-20 kappa x precision campaign
+%                  HARD kappa^colnorm campaign (ISAAC 2026-07-01)
 %
 %  Same 5-panel plot_irlsq_results layout as always (wall-time, normwise
-%  backward error, peak-vs-analytical memory, inner-CG iters, Q-orth loss) —
-%  just driven by the new irlsq_reg data. Each cell CSV is one config
-%  (5 Q-less QR methods, one matrix, one precision combo), so it drops straight
-%  into plot_irlsq_results; the extra reg columns (kappa_measured, mu,
-%  precond/solve_prec) are ignored by that plotter.
+%  backward error, peak-vs-analytical memory, inner-CG iters, Q-orth loss).
+%  Data = the geometric-scale + sparse-butterfly matrices (gen_fem2_hard_variants),
+%  which are GENUINELY hard on kappa^colnorm (the axis CholeskyQR feels), unlike
+%  the old benign column-scaling FEM2. Run with kappa_target=1 (baked-in hardness).
 %
-%  One tabbed figure per precision combo, 9 tabs each (3 sizes x 3 kappa):
-%    dd = double/double (baseline)
-%    sd = single precond / double solve   (collaborator scenario 1)
-%    ss = single precond / single solve   (collaborator scenario 2)
-%  Achieved kappa (kappa_measured, dd cells): k1e7~8.8e5, k1e9~2.3e8, k1e11~6.0e10.
-%  No breakdown CSV is emitted for irlsq_reg, so the phase-breakdown figure is
-%  skipped automatically.
+%  One tabbed figure per precision combo, 3 tabs each (1 size x 3 kappa^colnorm):
+%    dd = double/double (baseline) -- the clean separation: plain CholQR breaks
+%         past the double Gram floor (kappa^colnorm >= 1e9) while CQRRT/sCholQR3/
+%         CholQR2 stay orthogonal and converge to 1e11.
+%    sd = single precond / double solve  \  NOTE: kappa^colnorm >= 1e7 is past the
+%    ss = single precond / single solve  /  SINGLE Gram floor (~4e3), so ALL methods
+%         fail here (CQRRT qr_status=1 -> FAIL; CholQR family orth ~1, CG capped).
+%         Expected -- these panels differentiate nothing until a low-kappa band is added.
+%  Measured kappa^colnorm (kappa_measured, dd cells): kc1e7~1.3e7, kc1e9~1.1e9, kc1e11~8.7e10
+%  -- confirms the mesh-independent targeting held at the near-original size.
+%  Only the small size (75466x8256) was run on ISAAC. Cell dirs carry a breakdown
+%  CSV, so the phase-breakdown figure is populated.
 % =========================================================================
 
-clean_dir = fullfile(script_dir, 'benchmark-output', 'irlsq_reg_3kappa_clean_v2');
-sizes  = { 'small',  'small (75824x8304)';
-           'medium', 'medium (151648x16608)';
-           'large',  'large (303296x33216)' };
-kaps   = { 'k1e7',  '8.8e5';
-           'k1e9',  '2.3e8';
-           'k1e11', '6.0e10' };
+clean_dir = fullfile(script_dir, 'benchmark-output', 'irlsq_reg_hard_kcolnorm');
+sizes  = { 'small',  'small (75466x8256)' };
+kaps   = { 'kc1e7',  '\kappa^{colnorm}\approx1.3e7';
+           'kc1e9',  '\kappa^{colnorm}\approx1.1e9';
+           'kc1e11', '\kappa^{colnorm}\approx8.7e10' };
 combos = { 'dd', 'double precond / double solve';
            'sd', 'single precond / double solve';
            'ss', 'single precond / single solve' };
