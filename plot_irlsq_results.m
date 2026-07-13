@@ -47,8 +47,8 @@ w_ltgray    = [0.85 0.85 0.85];
 %  Algorithm display order.  GEQP3-stabilized variant (CQRRT_linop_stb) is
 %  intentionally absent: the benchmark dropped that path.
 % =========================================================================
-alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3'};
-alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3', 'sCholQR3\_se'};
+alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3', 'Blendenpik'};
+alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3', 'sCholQR3\_se', 'Blendenpik'};
 
 % =========================================================================
 %  Load CSVs.  count_comment_lines is a helper in this directory; we rely on
@@ -75,6 +75,13 @@ ls_residual_norm = T.ls_residual_norm;
 orth_error       = T.orth_error;
 m_val            = T.m(1);
 n_val            = T.n(1);
+% chol_retries (adaptive-shift retries) is present in irlsq_reg CSVs from 2026-07;
+% default to 0 for older CSVs that predate the column.
+if ismember('chol_retries', T.Properties.VariableNames)
+    chol_retries = T.chol_retries;
+else
+    chol_retries = zeros(height(T), 1);
+end
 
 % =========================================================================
 %  Sort algorithms by display order
@@ -232,6 +239,27 @@ for a = 1:n_algs
         text(x_pos(a), yl(2)*0.9, 'FAIL', 'HorizontalAlignment', 'center', ...
              'FontWeight', 'bold', 'Color', w_vermilion);
     end
+end
+
+% ---- (6) Cholesky adaptive-shift retries (0 = clean; N/A for Blendenpik) ----
+% How many times each CholeskyQR method had to grow the diagonal shift and retry
+% potrf. 0 = the unshifted first attempt succeeded; higher = a more ill-conditioned
+% (e.g. single-precision) Gram that needed regularization to factor.
+nexttile(tl_main);
+retries = arrayfun(@(i) chol_retries(i), sel_idx);
+bar(x_pos, retries, 'FaceColor', w_gray);
+ylabel('Cholesky shift retries'); title('Adaptive-shift retries');
+xticks(x_pos); xticklabels(disp_labels); xtickangle(35);
+grid on; box on;
+ylim([0, max(1, max(retries) * 1.25 + 1)]);
+for a = 1:n_algs
+    if strcmp(unique_algs{a}, 'Blendenpik')
+        lbl = 'N/A';   % Blendenpik is not a CholeskyQR method
+    else
+        lbl = sprintf('%d', retries(a));
+    end
+    text(x_pos(a), retries(a), lbl, 'HorizontalAlignment', 'center', ...
+         'VerticalAlignment', 'bottom', 'FontWeight', 'bold');
 end
 
 % =========================================================================

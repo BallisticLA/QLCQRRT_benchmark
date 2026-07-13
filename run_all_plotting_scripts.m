@@ -5,33 +5,28 @@ addpath(fullfile(script_dir, 'utils'));                % apply_butterfly, comput
 
 %% ========================================================================
 %  FEM_Problem_2 — Application 1 (IR-LSQ, regularized augmented operator)
-%                  HARD kappa^colnorm campaign (ISAAC 2026-07-01)
+%                  SINGLE hard kappa^colnorm = 1e6 campaign (ISAAC 2026-07-11)
 %
-%  Same 5-panel plot_irlsq_results layout as always (wall-time, normwise
-%  backward error, peak-vs-analytical memory, inner-CG iters, Q-orth loss).
-%  Data = the geometric-scale + sparse-butterfly matrices (gen_fem2_hard_variants),
-%  which are GENUINELY hard on kappa^colnorm (the axis CholeskyQR feels), unlike
-%  the old benign column-scaling FEM2. Run with kappa_target=1 (baked-in hardness).
+%  6-panel plot_irlsq_results layout: wall-time, normwise backward error, peak-vs-
+%  analytical memory, inner-CG (or LSQR) iters, Q-orth loss, + Cholesky shift retries.
+%  Data = geometric-scale + sparse-butterfly matrices (gen_fem2_hard_variants),
+%  kappa^colnorm=1e6 (the regime where single-precond WORKS for the robust methods;
+%  kappa>=1e7 was uniformly hopeless). Run with kappa_target=1, mu_factor=100, mask=63
+%  (6 methods incl. Blendenpik = sketch + Householder-QR + LSQR, an independent solver).
 %
-%  One tabbed figure per precision combo, 3 tabs each (1 size x 3 kappa^colnorm):
-%    dd = double/double (baseline) -- the clean separation: plain CholQR breaks
-%         past the double Gram floor (kappa^colnorm >= 1e9) while CQRRT/sCholQR3/
-%         CholQR2 stay orthogonal and converge to 1e11.
-%    sd = single precond / double solve  \  NOTE: kappa^colnorm >= 1e7 is past the
-%    ss = single precond / single solve  /  SINGLE Gram floor (~4e3), so ALL methods
-%         fail here (CQRRT qr_status=1 -> FAIL; CholQR family orth ~1, CG capped).
-%         Expected -- these panels differentiate nothing until a low-kappa band is added.
-%  Measured kappa^colnorm (kappa_measured, dd cells): kc1e7~1.3e7, kc1e9~1.1e9, kc1e11~8.7e10
-%  -- confirms the mesh-independent targeting held at the near-original size.
-%  Only the small size (75466x8256) was run on ISAAC. Cell dirs carry a breakdown
-%  CSV, so the phase-breakdown figure is populated.
+%  One tabbed figure per precision combo, 2 tabs each (small + large):
+%    dd = double/double  -- all Q-less methods machine-accurate; Blendenpik converges
+%         to its LSQR tol (looser, more iters).
+%    sd = single precond / double solve -- CQRRT is the unique winner (bwd 1e-16 from a
+%         single-precision sketch preconditioner); the CholeskyQR-of-Gram methods fail.
+%    ss = single/single -- all fail (pure single at kappa~2.5e6), expected.
+%  Sizes: small 75466x8256, large 301864x33024. Cell dirs carry a breakdown CSV.
 % =========================================================================
 
-clean_dir = fullfile(script_dir, 'benchmark-output', 'irlsq_reg_hard_kcolnorm');
-sizes  = { 'small',  'small (75466x8256)' };
-kaps   = { 'kc1e7',  '\kappa^{colnorm}\approx1.3e7';
-           'kc1e9',  '\kappa^{colnorm}\approx1.1e9';
-           'kc1e11', '\kappa^{colnorm}\approx8.7e10' };
+clean_dir = fullfile(script_dir, 'benchmark-output', 'irlsq_reg_1e6');
+sizes  = { 'small', 'small (75466x8256)';
+           'large', 'large (301864x33024)' };
+kaps   = { 'kc1e6', '\kappa^{colnorm}\approx1e6' };
 combos = { 'dd', 'double precond / double solve';
            'sd', 'single precond / double solve';
            'ss', 'single precond / single solve' };
@@ -129,6 +124,11 @@ end  % if false (old jun12 App1/App2)
 % =========================================================================
 export_dir = fullfile(script_dir, 'figures-export');
 if ~exist(export_dir, 'dir'), mkdir(export_dir); end
+% Wipe this script's own prior outputs so figures-export/ holds ONLY the current
+% campaign's figures (stale kc1e7/1e9/1e11 etc. from earlier runs are removed).
+% Scoped to the fem2_irlsq_reg_* prefix so other projects' figures are untouched.
+old = dir(fullfile(export_dir, 'fem2_irlsq_reg_*.pdf'));
+for i = 1:numel(old), delete(fullfile(export_dir, old(i).name)); end
 expfig = @(h, name) exportgraphics(h, fullfile(export_dir, [name, '.pdf']), ...
     'ContentType', 'vector', 'BackgroundColor', 'white');
 
