@@ -23,13 +23,19 @@ w_orange    = [230 159   0] / 255;
 w_green     = [  0 158 115] / 255;
 w_vermilion = [213  94   0] / 255;
 w_purple    = [204 121 167] / 255;
+w_sky       = [ 86 180 233] / 255;   % Wong sky-blue, for the newly-added CholQR2 series
 w_gray      = [0.5 0.5 0.5];
 
 % Algorithm rendering order + colors + markers
-alg_csv   = {'CQRRT_linop',  'CQRRT_linop_bqrrp', 'CholQR',  'sCholQR3_basic', 'sCholQR3'};
-alg_disp  = {'CQRRT\_linop', 'CQRRT\_linop\_bqrrp', 'CholQR', 'sCholQR3',       'sCholQR3\_se'};
-alg_color = {w_blue,         w_orange,            w_green,   w_vermilion,      w_purple};
-alg_mark  = {'o',            's',                 '^',       'd',              'v'};
+% CholQR2 was silently missing from this list, so it was dropped from every noise-sweep
+% figure even when present in the CSV (all other plotters include it). Added 2026-07-27.
+% Display names for the two sCholQR3 variants are spelled out rather than relying on the
+% CSV suffix: CSV 'sCholQR3_basic' is the NON-blocked one and CSV 'sCholQR3' is the
+% blocked/storage-efficient one, which reads backwards if left implicit.
+alg_csv   = {'CQRRT_linop',  'CQRRT_linop_bqrrp',   'CholQR',  'CholQR2', 'sCholQR3_basic',   'sCholQR3'};
+alg_disp  = {'CQRRT\_linop', 'CQRRT\_linop\_bqrrp', 'CholQR',  'CholQR2', 'sCholQR3 (basic)', 'sCholQR3 (blocked)'};
+alg_color = {w_blue,         w_orange,              w_green,   w_sky,     w_vermilion,        w_purple};
+alg_mark  = {'o',            's',                   '^',       'x',       'd',                'v'};
 
 n_algs = numel(alg_csv);
 n_ds   = size(datasets, 1);

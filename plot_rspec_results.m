@@ -41,7 +41,7 @@ w_ltgray    = [0.85 0.85 0.85];
 
 % ---- Algorithm display order (matches plot_irlsq_results.m) ---------------
 alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3'};
-alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3', 'sCholQR3\_se'};
+alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3 (basic)', 'sCholQR3 (blocked)'};
 
 % =========================================================================
 %  Load CSV (skip "#" header lines)

@@ -1,1 +1,15 @@
+# Generated test matrices. ~2.8 GB of regenerable .mtx, consolidated into one folder
+# 2026-07-27 (previously three sibling dirs -- input_matrices/, input_matrices_hard/,
+# input_matrices_ill/ -- only the first of which was ignored). Regenerate with:
+#   test-matrices/hard-kcolnorm  <- gen_fem2_hard_variants([], <target>)
+#   test-matrices/ill            <- gen_fem2_ill               (needs PDE Toolbox)
+#   test-matrices/contrast       <- gen_fem2_kappa_variants     (needs PDE Toolbox)
+test-matrices/
+
+# Legacy paths, kept so an older checkout cannot suddenly start tracking 2.8 GB.
 input_matrices/
+input_matrices_hard/
+input_matrices_ill/
+
+# Windows NTFS alternate-data-stream artifacts, created when copying through Windows.
+*:Zone.Identifier

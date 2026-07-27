@@ -48,7 +48,7 @@ w_ltgray    = [0.85 0.85 0.85];
 %  intentionally absent: the benchmark dropped that path.
 % =========================================================================
 alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3', 'Blendenpik'};
-alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3', 'sCholQR3\_se', 'Blendenpik'};
+alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3 (basic)', 'sCholQR3 (blocked)', 'Blendenpik'};
 
 % =========================================================================
 %  Load CSVs.  count_comment_lines is a helper in this directory; we rely on
