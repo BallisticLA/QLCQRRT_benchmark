@@ -10,10 +10,15 @@
 %
 % Usage:
 %   plot_toeplitz_sweep(toep_dir, size_dirs, main_tab)
+%   plot_toeplitz_sweep(toep_dir, size_dirs, main_tab, timing_agg)
+%
+% timing_agg ('best' default | 'mean') controls how multi-run CSVs (num_runs > 1,
+% 2026-08-05) collapse to one row per method; see aggregate_runs.m.
 
-function plot_toeplitz_sweep(toep_dir, size_dirs, main_tab)
+function plot_toeplitz_sweep(toep_dir, size_dirs, main_tab, timing_agg)
 
 if nargin < 3, main_tab = []; end
+if nargin < 4 || isempty(timing_agg), timing_agg = 'best'; end
 
 % Wong colorblind-friendly palette (matches plot_toeplitz_results).
 w_blue = [0 114 178]/255;  w_orange = [230 159 0]/255;  w_skyblue = [86 180 233]/255;
@@ -21,10 +26,11 @@ w_green = [0 158 115]/255; w_vermilion = [213 94 0]/255; w_purple = [204 121 167
 w_dkgray = [0.3 0.3 0.3];
 
 % Same CSV-name -> display-name mapping as the per-size plotter.
-alg_csv_order  = {'CQRRT_linop','CholQR','CholQR2','sCholQR3_basic','sCholQR3','Blendenpik','unpreconditioned'};
-alg_disp_names = {'CQRRT\_linop','CholQR','CholQR2','sCholQR3 (basic)','sCholQR3 (blocked)','Blendenpik','unprec'};
-alg_colors     = {w_blue, w_orange, w_skyblue, w_green, w_vermilion, w_purple, w_dkgray};
-alg_markers    = {'o','s','d','^','v','>','x'};
+% Blendenpik_cold ([NEW 08-05]+): same purple as warm Blendenpik, distinct marker.
+alg_csv_order  = {'CQRRT_linop','CholQR','CholQR2','sCholQR3_basic','sCholQR3','Blendenpik','Blendenpik_cold','unpreconditioned'};
+alg_disp_names = {'CQRRT\_linop','CholQR','CholQR2','sCholQR3 (basic)','sCholQR3 (blocked)','Blendenpik','Blendenpik (cold x_0)','unprec'};
+alg_colors     = {w_blue, w_orange, w_skyblue, w_green, w_vermilion, w_purple, w_purple, w_dkgray};
+alg_markers    = {'o','s','d','^','v','>','<','x'};
 na = numel(alg_csv_order);
 
 % --- Gather: one row per size, one column per method, NaN where absent. ---
@@ -46,6 +52,7 @@ for s = 1:ns
     opts = detectImportOptions(results_path, 'NumHeaderLines', n_skip);
     opts = setvartype(opts, 'algorithm', 'char');
     T = readtable(results_path, opts);
+    T = aggregate_runs(T, timing_agg);   % multi-run CSVs -> one row per method
     n_vals(s) = T.n(1);
     for k = 1:na
         idx = find(strcmp(T.algorithm, alg_csv_order{k}), 1);
