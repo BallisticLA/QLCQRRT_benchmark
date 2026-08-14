@@ -30,11 +30,15 @@ w_blue = [0 114 178]/255;  w_orange = [230 159 0]/255;  w_skyblue = [86 180 233]
 w_green = [0 158 115]/255; w_vermilion = [213 94 0]/255; w_purple = [204 121 167]/255;
 w_gray = [0.65 0.65 0.65]; w_ltgray = [0.85 0.85 0.85];
 
+% "Blendenpik_refine"/"Blendenpik_cold_refine" appear in [NEW 08-09]+ CSVs: Blendenpik's
+% OWN preconditioner and answer handed to our restarted-PCG refinement, so the published
+% rows and the like-for-like comparison sit side by side (as published, Blendenpik has no
+% refinement loop, which otherwise conflates preconditioner quality with solver structure).
 % "Blendenpik_cold" appears in [NEW 08-05]+ CSVs (warm x_0 is Blendenpik-only and
 % both variants run). "Blendenpik" keeps its bare label because its x_0 policy is
 % era-dependent (old cold campaigns disabled its warm start); the era note carries it.
-alg_csv_order  = {'CQRRT_linop','CholQR','CholQR2','sCholQR3_basic','sCholQR3','Blendenpik','Blendenpik_cold','unpreconditioned'};
-alg_disp_names = {'CQRRT\_linop','CholQR','CholQR2','sCholQR3 (basic)','sCholQR3 (blocked)','Blendenpik','Blendenpik (cold x_0)','unprec'};
+alg_csv_order  = {'CQRRT_linop','CholQR','CholQR2','sCholQR3_basic','sCholQR3','Blendenpik','Blendenpik_cold','Blendenpik_refine','Blendenpik_cold_refine','unpreconditioned'};
+alg_disp_names = {'CQRRT\_linop','CholQR','CholQR2','sCholQR3 (basic)','sCholQR3 (blocked)','Blendenpik','Blendenpik (cold x_0)','Blendenpik +refine','Blendenpik (cold) +refine','unprec'};
 
 results_path = fullfile(data_dir, results_csv);
 if ~isfile(results_path), error('plot_toeplitz_results: file not found: %s', results_path); end

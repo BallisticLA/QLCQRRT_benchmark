@@ -3,14 +3,14 @@
 # Re-generates all CQRRT_diagnostic data for the orth-gap figure.
 #
 # Produces one diagnostic_*.csv per matrix in:
-#   benchmark-output/orth-gap/
+#   results/orth-gap/
 #
 # Usage: bash run_orth_gap_benchmark.sh [path-to-CQRRT_diagnostic-binary]
 #
 # Defaults to the standard build path if no argument given.
 
 BENCH=${1:-/home/mymel/RandNLA/RandNLA-project/build/benchmark-build/CQRRT_diagnostic}
-OUTDIR=$(dirname "$0")/benchmark-output/orth-gap
+OUTDIR=$(dirname "$0")/../results/orth-gap
 MTX=/home/mymel/matlab/QLCQRRT_benchmark/input_matrices/photogrammetry2/photogrammetry2.mtx
 
 mkdir -p "$OUTDIR"

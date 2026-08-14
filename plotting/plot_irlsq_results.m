@@ -52,10 +52,13 @@ w_ltgray    = [0.85 0.85 0.85];
 %  Algorithm display order.  GEQP3-stabilized variant (CQRRT_linop_stb) is
 %  intentionally absent: the benchmark dropped that path.
 % =========================================================================
+% "Blendenpik_refine"/"Blendenpik_cold_refine" appear in [NEW 08-09]+ CSVs: Blendenpik's
+% OWN preconditioner and answer handed to our refinement solver, so the published rows and
+% the like-for-like comparison sit side by side.
 % "Blendenpik_cold" appears in [NEW 08-05]+ CSVs (warm x_0 is Blendenpik-only and
 % both variants run). "Blendenpik" keeps its bare label; the era note carries policy.
-alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3', 'Blendenpik', 'Blendenpik_cold'};
-alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3 (basic)', 'sCholQR3 (blocked)', 'Blendenpik', 'Blendenpik (cold x_0)'};
+alg_csv_order  = {'CQRRT_linop', 'CholQR', 'CholQR2', 'sCholQR3_basic', 'sCholQR3', 'Blendenpik', 'Blendenpik_cold', 'Blendenpik_refine', 'Blendenpik_cold_refine'};
+alg_disp_names = {'CQRRT\_linop', 'CholQR', 'CholQR2', 'sCholQR3 (basic)', 'sCholQR3 (blocked)', 'Blendenpik', 'Blendenpik (cold x_0)', 'Blendenpik +refine', 'Blendenpik (cold) +refine'};
 
 % =========================================================================
 %  Load CSVs.  count_comment_lines is a helper in this directory; we rely on

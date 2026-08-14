@@ -1,18 +1,20 @@
 % Resolve paths relative to this script's location (works on any machine)
 script_dir = fileparts(mfilename('fullpath'));
-addpath(script_dir);                                  % plotting helpers + count_comment_lines
+addpath(script_dir);                                  % repo root
 addpath(fullfile(script_dir, 'utils'));
+addpath(fullfile(script_dir, 'plotting'));                            % plot drivers
 
 tab_groups = {};   % {tabgroup handle, export prefix}
 
 %% ========================================================================
-%  CAMPAIGN ERAS (rebased 2026-08-05, Max)
+%  CAMPAIGN ERAS (rebased 2026-08-07, Max)
 %
-%  The era ladder rolled forward: the pre-07-29 campaigns and the [DIAG 07-29]
-%  diagnostic cells are RETIRED from the figure set (their data stays on disk
-%  under benchmark-output/{toeplitz_ls, toeplitz_ls_3case, irlsq_reg_1e6,
-%  irlsq_reg_3kappa*, irlsq_diag}); the 07-31 warm/cold pair is now [OLD ...];
-%  [NEW 08-05] is the rerun with the 08-05 policy changes.
+%  The era ladder rolled forward: every pre-08-06 campaign (the 07-31
+%  warm/cold pairs, the 08-05 lsqr rows, the 3kappa/1e6/hard_kcolnorm sets,
+%  irlsq_diag, the June isaac-* dirs) is RETIRED and its local data DELETED
+%  (2026-08-07 cleanup; the raw output survives on ISAAC under
+%  ~/slurm/CQRRT/benchmark-out/). The 08-06 campaign is now [OLD 08-06];
+%  [NEW 08-07] is the rerun on the unified restarted_pcg_ne engine.
 %
 %  Every era is marked in THREE places:
 %    1. the figure Name,
@@ -21,39 +23,79 @@ tab_groups = {};   % {tabgroup handle, export prefix}
 %  2026-07-30 (Max): era tags REMOVED from the in-plot super-titles -- the tab
 %  strip and PDF filename carry the era; the panel title stays clean.
 %
-%  WHAT CHANGED in the [NEW 08-05] era (read before comparing to OLD):
-%    * Warm-start policy: warm x_0 is Blendenpik-ONLY, and Blendenpik appears
-%      TWICE per experiment ("Blendenpik" warm / "Blendenpik_cold"); every
-%      Q-less QR method is cold. The OLD pair is the last of the
-%      everything-warm / everything-cold design.
-%    * Inner CG: single restart from the returned iterate against the TRUE
-%      residual (IterRefineLSQ inner_restarts = 1); per-step cap 500 (was 1000).
-%    * Timing hygiene: untimed CPU warmups before any measurement; num_runs = 5
-%      recorded per method (run column); plotters aggregate via TIMING_AGG.
-%    * Memory: PeakRSSTracker now malloc_trim's at start(), so peak-RSS bars
-%      compare across methods regardless of execution order. OLD-era peak-RSS
-%      bars over-report whichever method ran FIRST (CQRRT) and under-report the
-%      rest -- do not read storage conclusions off the OLD figures.
-%    * Wall-clock is NOT comparable across eras (policy + repeat changes).
+%  WHAT CHANGED in the [NEW 08-10] era (RandLAPACK commits 4c32aae -> 60f366a
+%  -> d148e73 -> b5a2886 -> 6d026d5 -> a73d03d; read before comparing to OLD):
+%    * ONE solver engine: both benchmarks now run restarted_pcg_ne.
+%      IterRefineLSQ is a thin adapter over it (bitwise-identical solutions
+%      pinned by test); inner_restarts is GONE -- every round is a restart
+%      from the returned iterate against the TRUE residual.
+%    * Per-round restart pacing: restart_drop default 1e-2 -> 1e-4 (Oleg's
+%      pacing), plus an inner_abs_tol guard so rounds stop once below the
+%      absolute target. FEM2 CLI slot 13 is ir_round_drop now (>= 1 rejected).
+%    * Round caps raised to 20 in BOTH benchmarks (FEM2 ir_n_steps, Toeplitz
+%      pcg_max_restarts). The OLD 3-4 round caps truncated the
+%      unpreconditioned baseline ~5 orders above tol -- its OLD-era accuracy
+%      bars are cap artifacts, not solver quality.
+%    * Outer stagnation exit: 2 rounds without true-residual improvement
+%      stop the method, so noise-floor methods no longer grind the cap.
+%    * BLAS-2 THREAD GUARD (d148e73), the reason 08-07 was rerun as 08-08:
+%      MKL threads the preconditioner's triangular solves badly at 64 threads.
+%      Calibrated on the benchmark node (Gold 6430): dtrsv is fastest at 8-16
+%      threads and degrades past that, so the solves are now capped (8 for
+%      n <= 4000, 16 above). The preconditioned methods apply the factor twice
+%      per inner iteration and the unpreconditioned baseline not at all, so
+%      the overhead taxed exactly the methods that converge fastest. Measured
+%      0807 -> 0808 on solve wall-clock: preconditioned methods 1.3-2.0x
+%      faster, unpreconditioned ~1.0x (unchanged, as expected).
+%      => 08-07 SOLVE TIMINGS ARE RETIRED as thread-contaminated; its accuracy
+%      and iteration counts were never affected.
+%    * FFT THREAD CAP (b5a2886) -- THE ACTUAL FIX for the wall-clock inversion,
+%      and the reason 08-08 was rerun as 08-09. MKL's threaded FFT
+%      INTERMITTENTLY STALLS at 64 threads: single DftiComputeForward calls
+%      were caught taking 16-32 ms instead of ~0.1 ms, ~99% of the stall inside
+%      the FFT call (fill/multiply/backward stay at 80-100 us). A method making
+%      276 applies averages those away; one making 11 cannot, so the artifact
+%      scaled INVERSELY with preconditioner quality and inverted the ranking.
+%      Thread sweep, 3 repeats: at 8 threads CQRRT solves in 19 ms against
+%      unpreconditioned's 200 ms (10.6x, matching 5-vs-267 iterations); at 64
+%      both read ~344 ms. The transform is now capped (default 16). 08-08 SOLVE
+%      TIMINGS ARE THEREFORE ALSO RETIRED; 08-09 is the first trustworthy
+%      wall-clock. Accuracy and iteration counts were never affected in any era.
+%    * FOUR BLENDENPIK ROWS (6d026d5). As published Blendenpik is sketch + QR +
+%      LSQR with no refinement, so comparing it against Q-less methods that all
+%      run through refinement conflated preconditioner quality with solver
+%      structure. The published warm/cold rows are unchanged; two rows now hand
+%      Blendenpik's OWN R and answer to our restarted-PCG engine. Measured:
+%      cold Blendenpik's recovery error 3.008e+03 becomes 4.107e-04 with
+%      refinement at IDENTICAL preconditioner conditioning, so its failure is
+%      solver structure, not a bad preconditioner.
+%      (a73d03d, why 08-09 was rerun as 08-10: 6d026d5 added those rows only to
+%      the sparse-mode selector, but run_irlsq_reg has its OWN selector, so the
+%      08-09 FEM2 cells produced 7 rows instead of 9 despite method_mask=127.
+%      The 08-09 Toeplitz data was complete and correct; both families were
+%      rerun together so one era means one commit.)
+%    * Wall-clock is NOT comparable across eras (round policy changed).
 % =========================================================================
 
-ERA_OLD_WARM = '[OLD 07-31 warm]';   % warm x_0 in EVERY method, cap 1000
-ERA_OLD_COLD = '[OLD 07-31 cold]';   % cold x_0 in EVERY method (Blendenpik too)
-ERA_NEW      = '[NEW 08-05]';        % Blendenpik-only warm (both variants), CG restart, 5 runs
-
-% Toeplitz campaigns: {data subdir, era tag, note for the plot title, ordered
-%                      size list ({} = discover+sort), draw cross-size sweep tab}
+ERA_OLD = '[OLD 08-06]';   % 4 outer rounds + outer_tol early exit, 3 runs (see below)
+ERA_NEW = '[NEW 08-10]';   % unified engine, FFT + BLAS-2 thread caps, 4 Blendenpik rows (see above)
+% [OLD 08-06] era (commits 17a60e2 + 3b2ee61, campaign 2026-08-06):
+%   * FEM2: ir_n_steps=4 outer refinement steps (was 2), outer_tol=10*eps early
+%     exit, inner_restarts=1 -- healthy dd methods reach relres ~1.2e-16 in 3
+%     steps (machine precision; the 08-05 era's 2-step runs plateaued ~2-3e-12).
+%   * Toeplitz: solver = restarted_pcg_ne (Oleg's second solver) with the STABLE
+%     round residual; all preconditioned methods sit at the 1.005e-10 noise floor
+%     (the data's 1e-11 noise) with flag=1 at tol 1e-12 -- flag=1 here is NORMAL,
+%     read relres. (Both eras ran Xeon Gold 6430 / 64 threads.)
 TOEP_CAMPAIGNS = {
-    'toeplitz_ls_warm', ERA_OLD_WARM, '4 fixed cases, warm x_0 all methods (superseded policy)', {'small','fixedm','middle','large'},  false
-    'toeplitz_ls_cold', ERA_OLD_COLD, '4 fixed cases, cold x_0 all methods (Blendenpik too)',    {'small','fixedm','middle','large'},  false
-    'toeplitz_ls_0805', ERA_NEW,      '4 fixed cases; Blendenpik warm+cold, 5 runs, CPU warmup', {'small','fixedm','middle','large'},  false
+    'toeplitz_ls_0806_pcg_ne',  ERA_OLD, '4 fixed cases; restarted PCG-NE solver (stable residual), 3 runs', {'small','fixedm','middle','large'},  false
+    'toeplitz_ls_0810_pcg_ne',  ERA_NEW, '4 fixed cases; unified PCG-NE engine, restart\_drop 1e-4, cap 50, stagnation exit, thread caps, 4 Blendenpik rows, 3 runs', {'small','fixedm','middle','large'},  false
 };
 
 % FEM2 IR-LSQ campaigns: {data subdir, era tag, note, combos to look for}
 FEM2_CAMPAIGNS = {
-    'irlsq_reg_1e10',      ERA_OLD_WARM, 'warm x_0 all methods, cap 1000, stagnation exit; constructed: \kappa^{colnorm}\approx2e11 measured (1e10 target); ill = native, \kappa^{colnorm}\approx3e13 measured', {'dd'}
-    'irlsq_reg_1e10_cold', ERA_OLD_COLD, 'cold x_0 all methods (Blendenpik too), cap 1000, stagnation exit -- the full-cold companion to the warm row', {'dd'}
-    'irlsq_reg_0805',      ERA_NEW,      'Blendenpik warm+cold, all else cold; cap 500, CG single restart, 5 runs', {'dd'}
+    'irlsq_reg_0806',  ERA_OLD, '4 outer steps + 10\epsilon early exit, cap 500, 1 CG restart, 3 runs', {'dd'}
+    'irlsq_reg_0810',  ERA_NEW, 'unified PCG-NE engine: round\_drop 1e-4, cap 50 rounds, stagnation exit, thread caps, 4 Blendenpik rows, 3 runs', {'dd'}
 };
 
 % 2026-08-05 (Max): the benchmarks now record num_runs repetitions per method
@@ -75,7 +117,7 @@ TIMING_AGG = 'best';
 % =========================================================================
 for cc = 1:size(TOEP_CAMPAIGNS, 1)
     [sub, era, note, order, want_sweep] = deal(TOEP_CAMPAIGNS{cc, :});
-    toep_dir = fullfile(script_dir, 'benchmark-output', sub);
+    toep_dir = fullfile(script_dir, 'results', sub);
     if ~exist(toep_dir, 'dir')
         fprintf('(skipped Toeplitz %s %s -- no data dir %s)\n', era, sub, toep_dir);
         continue;
@@ -145,7 +187,7 @@ end
 % =========================================================================
 for cc = 1:size(FEM2_CAMPAIGNS, 1)
     [sub, era, note, combos] = deal(FEM2_CAMPAIGNS{cc, :});
-    camp_dir = fullfile(script_dir, 'benchmark-output', sub);
+    camp_dir = fullfile(script_dir, 'results', sub);
     if ~exist(camp_dir, 'dir')
         fprintf('(skipped FEM2 %s %s -- no data dir)\n', era, sub); continue;
     end
@@ -185,18 +227,18 @@ for cc = 1:size(FEM2_CAMPAIGNS, 1)
 end
 
 % (The [DIAG 07-29] inner-CG diagnostic section was removed 2026-08-05 (Max):
-%  the stagnation-detection fix it motivated has landed, its question is
-%  answered in the 07-29/07-30 session logs, and its CSVs remain under
-%  benchmark-output/irlsq_diag/ if ever needed again.)
+%  the stagnation-detection fix it motivated has landed and its question is
+%  answered in the 07-29/07-30 session logs. Its CSVs were deleted locally in
+%  the 2026-08-07 cleanup; ISAAC benchmark-out still has them if ever needed.)
 
 %% ========================================================================
 %  Export -- one vector PDF per tab. The era tag is already in the tab title, so
 %  it survives into the slug; the prefix carries it too, so OLD and NEW PDFs can
 %  never collide or be confused once separated from the figure window.
 % =========================================================================
-export_dir = fullfile(script_dir, 'figures-export');
+export_dir = fullfile(script_dir, 'figures');
 if ~exist(export_dir, 'dir'), mkdir(export_dir); end
-% Wipe ALL prior PDFs so figures-export/ holds only the current run's tabs.
+% Wipe ALL prior PDFs so figures/ holds only the current run's tabs.
 old = dir(fullfile(export_dir, '*.pdf'));
 for i = 1:numel(old), delete(fullfile(export_dir, old(i).name)); end
 expfig = @(h, name) exportgraphics(h, fullfile(export_dir, [name, '.pdf']), ...
