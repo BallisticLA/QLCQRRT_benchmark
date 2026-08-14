@@ -1,15 +1,30 @@
+# Benchmark results and exported figures: NOT tracked while campaigns are active
+# (lifecycle data policy -- raw data lives on ISAAC + local; a campaign's final results
+# are committed deliberately when it freezes as the paper record).
+# Convention: agent-workspace randnla/reference/matlab-benchmark-repo-layout.md
+results/
+figures/
+
+# Legacy names of the two dirs above, kept so an older checkout cannot re-track them.
+benchmark-output/
+figures-export/
+
 # Generated test matrices. ~2.8 GB of regenerable .mtx, consolidated into one folder
 # 2026-07-27 (previously three sibling dirs -- input_matrices/, input_matrices_hard/,
 # input_matrices_ill/ -- only the first of which was ignored). Regenerate with:
-#   test-matrices/hard-kcolnorm  <- gen_fem2_hard_variants([], <target>)
-#   test-matrices/ill            <- gen_fem2_ill               (needs PDE Toolbox)
-#   test-matrices/contrast       <- gen_fem2_kappa_variants     (needs PDE Toolbox)
-test-matrices/
+#   matrices/hard-kcolnorm  <- utils/gen_fem2_hard_variants([], <target>)
+#   matrices/ill            <- utils/gen_fem2_ill               (needs PDE Toolbox)
+#   matrices/contrast       <- utils/gen_fem2_kappa_variants     (needs PDE Toolbox)
+matrices/
 
 # Legacy paths, kept so an older checkout cannot suddenly start tracking 2.8 GB.
+test-matrices/
 input_matrices/
 input_matrices_hard/
 input_matrices_ill/
+
+# MATLAB editor autosaves
+*.asv
 
 # Windows NTFS alternate-data-stream artifacts, created when copying through Windows.
 *:Zone.Identifier
